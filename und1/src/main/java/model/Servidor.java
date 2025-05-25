@@ -1,4 +1,4 @@
-package network;
+package model;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
