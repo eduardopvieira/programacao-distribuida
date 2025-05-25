@@ -4,8 +4,14 @@ import model.Posicao;
 public class Main {
 
     public static void main(String[] args) {
-        Thread drone1 = new Thread(new Drone(Posicao.NORTE));
-        drone1.start();
+        Thread droneNorte = new Thread(new Drone(Posicao.NORTE));
+        Thread droneSul = new Thread(new Drone(Posicao.SUL));
+        Thread droneLeste = new Thread(new Drone(Posicao.LESTE));
+        Thread droneOeste = new Thread(new Drone(Posicao.OESTE));
 
+        droneNorte.start();
+        droneSul.start();
+        droneLeste.start();
+        droneOeste.start();
     }
 }
