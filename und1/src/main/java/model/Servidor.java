@@ -4,8 +4,12 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 
-public class Servidor {
-    public static void main(String[] args) {
+public class Servidor implements Runnable {
+
+    public Servidor() {}
+
+    @Override
+    public void run() {
         int porta = 4446;
         String grupo = "230.0.0.0";
 
@@ -21,10 +25,17 @@ public class Servidor {
                 socket.receive(pacote);
 
                 String mensagem = new String(pacote.getData(), 0, pacote.getLength());
-                System.out.println("Mensagem recebida: " + mensagem);
+                System.out.println("Mensagem recebida do drone: " + mensagem);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+    //Os dados devem ser armazenados no formato: [temperatura//umidade//pressao//radiacao].
+    public String padronizarMensagem(String msg) {
+        return "";
+
+    }
+
 }
