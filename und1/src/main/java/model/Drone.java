@@ -6,7 +6,8 @@ import java.net.InetAddress;
 
 public class Drone implements Runnable {
     private Posicao posicao;
-    private int[] tempos = {2000, 3000, 4000, 5000};
+
+    private final int[] tempos = {2000, 3000, 4000, 5000};
 
     public Drone(Posicao posicao) {
         this.posicao = posicao;
