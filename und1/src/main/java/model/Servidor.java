@@ -1,5 +1,7 @@
 package model;
 
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -18,41 +20,42 @@ public class Servidor implements Runnable {
             InetAddress grupoMulticast = InetAddress.getByName(grupo);
             socket.joinGroup(grupoMulticast);
 
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[1024];  // Ajuste se necessário
             System.out.println("Servidor aguardando mensagens...");
 
             while (true) {
                 DatagramPacket pacote = new DatagramPacket(buffer, buffer.length);
                 socket.receive(pacote);
 
-                String msgNaoTratada = new String(pacote.getData(), 0, pacote.getLength());
-                RetornoDrone retorno = transformarStringEmRetornoDrone(msgNaoTratada);
-                String msgTratada = padronizarMensagem(retorno);
+                //erros ja sao lançados dentro dessa funçao, se ela der errado o programa inteiro morre
+                RetornoDrone retorno = desserializarRetornoDrone(pacote);
 
-                System.out.println("Mensagem recebida do drone " + retorno.getPosicao() + ": " + msgTratada);
+                if (retorno != null) {
+                    String mensagemTratada = padronizarMensagem(retorno);
+                    System.out.println("Drone " + retorno.getPosicao() + ": " + mensagemTratada);
+                }
+
+
+
+
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    //lembrete: dados devem ser armazenados no formato [temperatura//umidade//pressao//radiacao].
-    public RetornoDrone transformarStringEmRetornoDrone(String mensagem) {
-        String[] partes = mensagem.split("\\*");
-        if (partes.length != 2) {
-            throw new IllegalArgumentException("Mensagem inválida: " + mensagem);
+    private RetornoDrone desserializarRetornoDrone(DatagramPacket pacote) {
+        try (
+                ByteArrayInputStream byteStream = new ByteArrayInputStream(pacote.getData(), 0, pacote.getLength());
+                ObjectInputStream in = new ObjectInputStream(byteStream)
+        ) {
+            return (RetornoDrone) in.readObject();
+        } catch (Exception e) {
+            System.err.println("Erro ao desserializar objeto: " + e.getMessage());
+            return null;
         }
-        String dados = partes[0];
-        String posicaoStr = partes[1];
-
-        Posicao posicao;
-        try {
-            posicao = Posicao.valueOf(posicaoStr);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Posição inválida: " + posicaoStr);
-        }
-        return new RetornoDrone(dados, posicao);
     }
+
 
     public String padronizarMensagem(RetornoDrone msg) {
         Posicao pos = msg.getPosicao();
