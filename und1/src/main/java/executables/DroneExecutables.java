@@ -1,7 +1,7 @@
 package executables;
 
 import model.Drone;
-import model.Posicao;
+import model.auxiliar.Posicao;
 
 public class DroneExecutables {
     public static void main(String[] args) {

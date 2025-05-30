@@ -1,5 +1,8 @@
 package model;
 
+import model.auxiliar.Posicao;
+import model.auxiliar.RetornoDrone;
+
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
