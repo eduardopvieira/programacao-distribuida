@@ -1,10 +1,10 @@
 package executables;
 
-import model.Servidor;
+import model.DataCenter;
 
 public class ServerExecutable {
     public static void main(String[] args) {
-        Thread servidor = new Thread(new Servidor());
+        Thread servidor = new Thread(new DataCenter());
         servidor.start();
     }
 }
