@@ -1,77 +1,83 @@
 package model;
 
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
+import java.io.IOException;
+import java.net.*;
 
 public class Servidor implements Runnable {
+    private static final int DATACENTER_PORT = 4447;
+    private static final String DATACENTER_GROUP = "231.0.0.0";
+    private static final int DATABASE_PORT = 4448;
+    private static final String DATABASE_GROUP = "232.0.0.0";
 
-    public Servidor() {}
+    private final boolean isWriter;
 
-    //commiting develop
+    public Servidor() {
+        this.isWriter = false;
+    }
+
+    public Servidor(boolean isWriter) {
+        this.isWriter = isWriter;
+    }
+
     @Override
     public void run() {
-        int porta = 4446;
-        String grupo = "230.0.0.0";
+        try {
+            // socket pra receber a string do datacenter
+            try (MulticastSocket receiverSocket = new MulticastSocket(DATACENTER_PORT)) {
+                InetAddress datacenterGroup = InetAddress.getByName(DATACENTER_GROUP);
+                receiverSocket.joinGroup(datacenterGroup);
 
-        try (MulticastSocket socket = new MulticastSocket(porta)) {
-            InetAddress grupoMulticast = InetAddress.getByName(grupo);
-            socket.joinGroup(grupoMulticast);
+                System.out.println("Servidor conectado ao grupo do DataCenter (" +
+                        DATACENTER_GROUP + ":" + DATACENTER_PORT + ")");
 
-            byte[] buffer = new byte[1024];  // Ajuste se necessário
-            System.out.println("Servidor aguardando mensagens...");
+                // socket pra enviar ao banco de dados
+                try (MulticastSocket senderSocket = new MulticastSocket()) {
+                    InetAddress databaseGroup = InetAddress.getByName(DATABASE_GROUP);
 
-            while (true) {
-                DatagramPacket pacote = new DatagramPacket(buffer, buffer.length);
-                socket.receive(pacote);
+                    byte[] buffer = new byte[1024];
 
-                //erros ja sao lançados dentro dessa funçao, se ela der errado o programa inteiro morre
-                RetornoDrone retorno = desserializarRetornoDrone(pacote);
+                    while (true) {
 
-                if (retorno != null) {
-                    String mensagemTratada = padronizarMensagem(retorno);
-                    System.out.println("Drone " + retorno.getPosicao() + ": " + mensagemTratada);
+                        // essa parte recebe mensagem do datacenter
+                        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                        receiverSocket.receive(packet);
+
+                        String message = new String(packet.getData(), 0, packet.getLength());
+                        logReceivedMessage(message);
+
+                        //aq escreve na base de dados. como apenas um dos servidores escreve, verifica se é writer
+                        if (isWriter) {
+                            sendToDatabase(senderSocket, databaseGroup, message);
+                        }
+                    }
                 }
-
-
-
-
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
+            handleError(e);
+        }
+    }
+
+    private void sendToDatabase(MulticastSocket socket, InetAddress group, String message) throws IOException {
+            byte[] data = message.getBytes();
+            DatagramPacket packet = new DatagramPacket(
+                data,
+                data.length,
+                group,
+                DATABASE_PORT
+            );
+
+            socket.send(packet);
+            System.out.println("Mensagem encaminhada para o Banco de Dados: " + message);
+
+    }
+
+
+    private void logReceivedMessage(String message) {
+        System.out.println("[DataCenter → Servidor] Mensagem recebida: " + message);
+    }
+
+    private void handleError(Exception e) {
+            System.err.println("Erro no servidor:");
             e.printStackTrace();
-        }
     }
-
-    private RetornoDrone desserializarRetornoDrone(DatagramPacket pacote) {
-        try (
-                ByteArrayInputStream byteStream = new ByteArrayInputStream(pacote.getData(), 0, pacote.getLength());
-                ObjectInputStream in = new ObjectInputStream(byteStream)
-        ) {
-            return (RetornoDrone) in.readObject();
-        } catch (Exception e) {
-            System.err.println("Erro ao desserializar objeto: " + e.getMessage());
-            return null;
-        }
-    }
-
-
-    public String padronizarMensagem(RetornoDrone msg) {
-        Posicao pos = msg.getPosicao();
-
-        switch (pos) {
-            case NORTE:
-                return msg.getMensagem().replace("-", "//");
-            case SUL:
-                return msg.getMensagem().replace("(", "").replace(")", "").replace(";", "//");
-            case LESTE:
-                return msg.getMensagem().replace("{", "").replace("}", "").replace(",", "//");
-            case OESTE:
-                return msg.getMensagem().replace("#", "//");
-            default:
-                throw new IllegalArgumentException("Posição do drone desconhecida: " + pos);
-        }
-    }
-
 }

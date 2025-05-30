@@ -1,4 +1,6 @@
-package model;
+package model.auxiliar;
+
+import model.auxiliar.Posicao;
 
 import java.io.Serializable;
 
