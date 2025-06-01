@@ -5,15 +5,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 
 public class User {
 
-    private Socket socket;
-    private InetAddress inet;
-    private String ip;
+    private String ip = "127.0.0.1";
     private int port;
 
     public User(String datacenterIp, int datacenterPort) {
@@ -26,10 +23,9 @@ public class User {
 
             String serverInfo = reader.readLine();
             String[] parts = serverInfo.split(":");
-            this.ip = parts[0];
             this.port = Integer.parseInt(parts[1]);
 
-            System.out.println("Servidor Proxy encontrado: " + ip + ":" + port);
+            System.out.println("Servidor encontrado: " + ip + ":" + port);
             connectToServer();
         } catch (IOException e) {
             System.out.println("Erro ao conectar ao Servidor de Localização: " + e.getMessage());
