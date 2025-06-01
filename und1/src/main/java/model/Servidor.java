@@ -4,21 +4,21 @@ import java.io.IOException;
 import java.net.*;
 
 public class Servidor implements Runnable {
-    // Configuration constants
-    private int DATACENTER_PORT = 4447;
-    private String DATACENTER_GROUP = "231.0.0.0";
-    private int DATABASE_PORT = 4448;
-    private String DATABASE_GROUP = "232.0.0.0";
-    private int RESPONSE_PORT = 5555; // DataCenter's response port
+    private final int DATACENTER_PORT = 4447;
+    private final String DATACENTER_GROUP = "231.0.0.0";
+    private final int DATABASE_PORT = 4448;
+    private final String DATABASE_GROUP = "232.0.0.0";
+    private final int LOCSERVER_PORT = 4449;
+    private final String LOCSERVER_GROUP = "233.0.0.0";
+    private final int RESPONSE_PORT = 5555; //locserver espera respostas aqui
 
-    // Server state
     private final boolean isWriter;
     private final int PORT;
-    private volatile int userConnections = 0;
+    private int userConnections = 0;
 
-    // Network components
     private MulticastSocket multicastDatacenterServer;
     private MulticastSocket multicastDatabaseServer;
+    private MulticastSocket multicastLocServerServer;
 
     public Servidor(int PORT) {
         this(PORT, false);
@@ -33,38 +33,43 @@ public class Servidor implements Runnable {
     public void run() {
         try {
             initializeMulticastSockets();
-            datacenterListener();
+            System.out.println("Servidor " + PORT + " iniciado e ouvindo em:" +
+                    "\n- Datacenter: " + DATACENTER_GROUP + ":" + DATACENTER_PORT +
+                    "\n- Database: " + DATABASE_GROUP + ":" + DATABASE_PORT +
+                    "\n- LocServer: " + LOCSERVER_GROUP + ":" + LOCSERVER_PORT);
+
+            //thread ouvindo o datacenter
+            new Thread(this::datacenterListener).start();
+
+            // thread ouvindo o LocServer
+            new Thread(this::locServerListener).start();
+
         } catch (IOException e) {
             handleError(e);
         }
     }
 
     private void initializeMulticastSockets() throws IOException {
-        // Initialize DataCenter communication socket
         multicastDatacenterServer = new MulticastSocket(DATACENTER_PORT);
         multicastDatacenterServer.joinGroup(InetAddress.getByName(DATACENTER_GROUP));
 
-        // Initialize database communication socket
         multicastDatabaseServer = new MulticastSocket(DATABASE_PORT);
         multicastDatabaseServer.joinGroup(InetAddress.getByName(DATABASE_GROUP));
 
-        System.out.printf("Servidor %d iniciado (Writer: %b)\n", PORT, isWriter);
+        multicastLocServerServer = new MulticastSocket(LOCSERVER_PORT);
+        multicastLocServerServer.joinGroup(InetAddress.getByName(LOCSERVER_GROUP));
     }
 
     private void datacenterListener() {
         byte[] buffer = new byte[1024];
-
         while (true) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 multicastDatacenterServer.receive(packet);
-
                 String message = new String(packet.getData(), 0, packet.getLength()).trim();
-                logReceivedMessage(message);
+                logReceivedMessage("Datacenter", message);
 
-                if (message.startsWith("REPORT_USER_COUNT")) {
-                    handleCountRequest(packet.getAddress());
-                } else if (isWriter) {
+                if (isWriter) {
                     handleDatabaseMessage(message);
                 }
             } catch (IOException e) {
@@ -73,25 +78,42 @@ public class Servidor implements Runnable {
         }
     }
 
-    private void handleCountRequest(InetAddress datacenterAddress) throws IOException {
+    private void locServerListener() {
+        byte[] buffer = new byte[1024];
+        while (true) {
+            try {
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                multicastLocServerServer.receive(packet);
+                String message = new String(packet.getData(), 0, packet.getLength()).trim();
+                logReceivedMessage("LocServer", message);
+
+                if (message.startsWith("REPORT_USER_COUNT")) {
+                    handleCountRequest();
+                }
+            } catch (IOException e) {
+                handleError(e);
+            }
+        }
+    }
+
+    private void handleCountRequest() throws IOException {
         String response = userConnections + "!" + PORT;
         byte[] buf = response.getBytes();
 
-        // Send UNICAST response to DataCenter's response port
         try (DatagramSocket tempSocket = new DatagramSocket()) {
             DatagramPacket responsePacket = new DatagramPacket(
                     buf,
                     buf.length,
-                    datacenterAddress, // DataCenter's address from received packet
-                    RESPONSE_PORT      // DataCenter's response port
+                    InetAddress.getLocalHost(), // se tiver que rodar em mais pcs tem q trocar isso aq
+                    RESPONSE_PORT //response socket
             );
             tempSocket.send(responsePacket);
-            System.out.println("Enviado contagem de conexões: " + response);
+            System.out.println("Response sent to LocServer: " + response);
         }
     }
 
     private void handleDatabaseMessage(String message) throws IOException {
-        if (!message.contains("!")) { // Filter out our own count responses
+        if (!message.startsWith("REPORT_USER_COUNT")) {
             sendToDatabase(message);
         }
     }
@@ -99,21 +121,20 @@ public class Servidor implements Runnable {
     private void sendToDatabase(String message) throws IOException {
         byte[] data = message.getBytes();
         DatagramPacket packet = new DatagramPacket(
-                data,
-                data.length,
-                InetAddress.getByName(DATABASE_GROUP),
-                DATABASE_PORT
+                data, data.length,
+                InetAddress.getByName(DATABASE_GROUP), DATABASE_PORT
         );
         multicastDatabaseServer.send(packet);
-        System.out.println("Mensagem enviada para o banco de dados: " + message);
+        System.out.println("Message sent to database: " + message);
     }
 
-
-    private void logReceivedMessage(String message) {
-        System.out.printf("[Servidor %d] Recebido: %s\n", PORT, message);
+    private void logReceivedMessage(String source, String message) {
+        System.out.printf("[Server %d][%s] received: %s\n", PORT, source, message);
     }
 
     private void handleError(Exception e) {
         System.err.printf("Erro no servidor %d: %s\n", PORT, e.getMessage());
+        e.printStackTrace();
     }
+
 }
