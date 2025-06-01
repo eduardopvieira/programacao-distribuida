@@ -14,21 +14,28 @@ public class User {
     private int port;
 
     public User(String locServerIp, int locServerPort) {
-        this.connectToDatacenter(locServerIp, locServerPort);
+        this.connectToLocServer(locServerIp, locServerPort);
     }
 
-    private void connectToDatacenter(String datacenterIp, int datacenterPort) {
-        try (Socket socket = new Socket(datacenterIp, datacenterPort);
-             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+    private void connectToLocServer(String datacenterIp, int datacenterPort) {
+        try (Socket locServerSocket = new Socket(datacenterIp, datacenterPort);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(locServerSocket.getInputStream()))) {
 
             String serverInfo = reader.readLine();
+            if (serverInfo.startsWith("ERROR")) {
+                System.out.println("Nenhum servidor disponível: " + serverInfo);
+                return;
+            }
+
             String[] parts = serverInfo.split(":");
+            this.ip = parts[0]; // Use o IP retornado pelo LocServer
             this.port = Integer.parseInt(parts[1]);
 
-            System.out.println("Servidor encontrado: " + ip + ":" + port);
+            System.out.println("Servidor recomendado: " + ip + ":" + port);
             connectToServer();
+
         } catch (IOException e) {
-            System.out.println("Erro ao conectar ao Servidor de Localização: " + e.getMessage());
+            System.out.println("Erro ao conectar ao LocServer: " + e.getMessage());
         }
     }
 
