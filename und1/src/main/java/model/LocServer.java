@@ -15,7 +15,8 @@ public class LocServer implements Runnable {
     private MulticastSocket multicastLocServerServer;
     private ExecutorService threadPool = Executors.newFixedThreadPool(10);
 
-    public LocServer() {}
+    public LocServer() {
+    }
 
     @Override
     public void run() {
@@ -45,7 +46,9 @@ public class LocServer implements Runnable {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 String clientAddress = clientSocket.getInetAddress().getHostAddress();
+
                 System.out.println("Accepted connection from client: " + clientAddress);
+
 
                 threadPool.submit(() -> {
                     System.out.println("Processing request from " + clientAddress);
@@ -71,7 +74,9 @@ public class LocServer implements Runnable {
         } catch (IOException e) {
             System.err.println("Client handling error: " + e.getMessage());
         } finally {
-            try { clientSocket.close(); } catch (IOException e) { /* Ignore */ }
+            try {
+                clientSocket.close();
+            } catch (IOException e) { /* Ignore */ }
         }
     }
 
