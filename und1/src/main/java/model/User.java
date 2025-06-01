@@ -10,7 +10,7 @@ import java.util.Scanner;
 
 public class User {
 
-    private String ip;
+    private String ip = "127.0.0.1";
     private int port;
 
     public User(String datacenterIp, int datacenterPort) {
@@ -23,7 +23,6 @@ public class User {
 
             String serverInfo = reader.readLine();
             String[] parts = serverInfo.split(":");
-            this.ip = parts[0];
             this.port = Integer.parseInt(parts[1]);
 
             System.out.println("Servidor encontrado: " + ip + ":" + port);
