@@ -17,52 +17,56 @@ public class DataCenter implements Runnable {
     private final int[] serverPorts = {50001, 50002};
 
     private MulticastSocket multicastDroneDatacenter;
-
     private MulticastSocket multicastDatacenterServers;
-
+    private DatagramSocket responseSocket;
 
     private ExecutorService threadPool;
 
     @Override
     public void run() {
-        threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        try {
+            // Initialize all sockets first
+            initializeSockets();
 
-        new Thread(this::listenToDronesMulticast).start();
+            threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+            new Thread(this::listenToDronesMulticast).start();
+            startTCPServer();
 
-        startTCPServer();
+
+        } catch (IOException e) {
+            System.err.println("DataCenter initialization failed: " + e.getMessage());
+        }
+    }
+
+    private void initializeSockets() throws IOException {
+        // Drone communication socket
+        multicastDroneDatacenter = new MulticastSocket(4446);
+        multicastDroneDatacenter.joinGroup(InetAddress.getByName("230.0.0.0"));
+
+        // Server communication socket
+        multicastDatacenterServers = new MulticastSocket();
+
+        // Response socket (for receiving server responses)
+        responseSocket = new DatagramSocket(5555); // Different port for responses
+        responseSocket.setSoTimeout(1000);
     }
 
     private void listenToDronesMulticast() {
-        int portaDrones = 4446;
-        String grupoDrones = "230.0.0.0";
+        byte[] buffer = new byte[1024];
+        while (true) {
+            try {
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                multicastDroneDatacenter.receive(packet);
 
-        try (MulticastSocket socket = new MulticastSocket(portaDrones)) {
-            InetAddress grupoMulticast = InetAddress.getByName(grupoDrones);
-            socket.joinGroup(grupoMulticast);
-
-            this.multicastDroneDatacenter = socket;
-
-            byte[] buffer = new byte[1024];
-            System.out.println("Servidor aguardando mensagens multicast...");
-
-            while (true) {
-                DatagramPacket pacote = new DatagramPacket(buffer, buffer.length);
-                socket.receive(pacote);
-
-                RetornoDrone retorno = desserializarRetornoDrone(pacote);
-
-                if (retorno == null) {
-                    System.err.println("Erro ao desserializar o pacote recebido.");
-                    continue;
+                RetornoDrone retorno = desserializarRetornoDrone(packet);
+                if (retorno != null) {
+                    String mensagemTratada = padronizarMensagem(retorno);
+                    System.out.println("Drone " + retorno.getPosicao() + ": " + mensagemTratada);
+                    enviarMensagemParaServidores(mensagemTratada);
                 }
-
-                String mensagemTratada = padronizarMensagem(retorno);
-                System.out.println("Drone " + retorno.getPosicao() + ": " + mensagemTratada);
-
-                enviarMensagemParaServidores(mensagemTratada);
+            } catch (IOException e) {
+                System.err.println("Error in drone listener: " + e.getMessage());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -85,12 +89,9 @@ public class DataCenter implements Runnable {
         try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
              BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
-            // Send initial server info to client
             String serverInfo = InetAddress.getLocalHost().getHostAddress() + ":" + PORT;
             out.println(serverInfo);
 
-            //i want to request my servers the amount of connections on them and connect the user to the
-            //server with the least current connections
             requestUserCounts();
 
         } catch (IOException e) {
@@ -143,85 +144,65 @@ public class DataCenter implements Runnable {
     }
 
     public void enviarMensagemParaServidores(String mensagem) {
-        String grupoServidores = "231.0.0.0";
-        int portaServidores = 4447;
-
-        try (MulticastSocket socket = new MulticastSocket()) {
-            InetAddress grupo = InetAddress.getByName(grupoServidores);
-
-            this.multicastDatacenterServers = socket;
-
+        try {
+            InetAddress group = InetAddress.getByName("231.0.0.0");
             byte[] dados = mensagem.getBytes();
-            DatagramPacket pacote = new DatagramPacket(dados, dados.length, grupo, portaServidores);
-            socket.send(pacote);
-            System.out.println("Mensagem enviada para o grupo de servidores: " + mensagem);
-        } catch (Exception e) {
-            e.printStackTrace();
+            DatagramPacket pacote = new DatagramPacket(dados, dados.length, group, 4447);
+            multicastDatacenterServers.send(pacote);
+            System.out.println("Mensagem enviada para servidores: " + mensagem);
+        } catch (IOException e) {
+            System.err.println("Error sending to servers: " + e.getMessage());
         }
     }
 
     private void requestUserCounts() {
         try {
             InetAddress group = InetAddress.getByName("231.0.0.0");
-            String request = "REPORT_USER_COUNT";
+            String request = "REPORT_USER_COUNT:" + responseSocket.getLocalPort();
             byte[] buf = request.getBytes();
 
             DatagramPacket packet = new DatagramPacket(buf, buf.length, group, 4447);
             multicastDatacenterServers.send(packet);
-            System.out.println("Requisitando contagem de conexões ao grupo multicast.");
+            System.out.println("Sent user count request");
 
-            int returnPort = returnLeastConnectionServer();
-            System.out.println("Porta do servidor com menos conexoes: " + returnPort);
         } catch (IOException e) {
-            System.err.println("Error sending multicast request: " + e.getMessage());
+            System.err.println("Error requesting user counts: " + e.getMessage());
         }
     }
 
     private int returnLeastConnectionServer() {
-
-        long startTime = System.currentTimeMillis();
-        long responseTimeoutMs = 5000; // 3 segundos até o timeout
-
         Map<Integer, Integer> serverConnections = new HashMap<>();
+        long startTime = System.currentTimeMillis();
+        long timeout = 2000; // waiting 2 seconds for responses
 
-        while (System.currentTimeMillis() - startTime < responseTimeoutMs) {
+        while (System.currentTimeMillis() - startTime < timeout) {
             try {
+                byte[] buffer = new byte[1024];
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                responseSocket.receive(packet);
 
-                byte[] receiveData = new byte[1024];
+                String response = new String(packet.getData(), 0, packet.getLength());
+                System.out.println("Received: " + response);
 
-                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-                multicastDatacenterServers.receive(receivePacket);
-
-                String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                System.out.println("Received server response: " + response);
-
-                // Parse the response (format: "userConnections!Port")
+                // splitting "connections!port"
                 String[] parts = response.split("!");
                 if (parts.length == 2) {
                     int connections = Integer.parseInt(parts[0]);
                     int port = Integer.parseInt(parts[1]);
                     serverConnections.put(port, connections);
                 }
-
-                return serverConnections.entrySet().stream()
-                        .min(Map.Entry.comparingByValue())
-                        .map(Map.Entry::getKey)
-                        .orElse(-1);
-
-
             } catch (SocketTimeoutException e) {
-                System.err.println("Timeout waiting for server responses: " + e.getMessage());
-                break;
+                // Expected when no more responses
+                if (!serverConnections.isEmpty()) break;
             } catch (IOException | NumberFormatException e) {
-                System.err.println("Error processing server response: " + e.getMessage());
+                System.err.println("Error processing response: " + e.getMessage());
             }
         }
 
-        // Find server with least connections
         return serverConnections.entrySet().stream()
                 .min(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
-                .orElse(-1); // Return -1 if no servers responded
+                .orElse(-1);
     }
 }
 
