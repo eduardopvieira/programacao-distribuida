@@ -13,8 +13,8 @@ public class User {
     private String ip = "127.0.0.1";
     private int port;
 
-    public User(String datacenterIp, int datacenterPort) {
-        this.connectToDatacenter(datacenterIp, datacenterPort);
+    public User(String locServerIp, int locServerPort) {
+        this.connectToDatacenter(locServerIp, locServerPort);
     }
 
     private void connectToDatacenter(String datacenterIp, int datacenterPort) {
