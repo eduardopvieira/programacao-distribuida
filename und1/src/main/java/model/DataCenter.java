@@ -5,16 +5,9 @@ import model.auxiliar.RetornoDrone;
 
 import java.io.*;
 import java.net.*;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+
 
 public class DataCenter implements Runnable {
-    private final int THREAD_POOL_SIZE = 10;
 
 
     private MulticastSocket multicastDroneDatacenter;
