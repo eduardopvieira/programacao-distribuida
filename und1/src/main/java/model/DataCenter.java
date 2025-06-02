@@ -1,10 +1,9 @@
 package model;
 
-import model.auxiliar.Posicao;
-import model.auxiliar.RetornoDrone;
-
 import java.io.*;
 import java.net.*;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 
 public class DataCenter implements Runnable {
@@ -43,10 +42,9 @@ public class DataCenter implements Runnable {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 multicastDroneDatacenter.receive(packet);
 
-                RetornoDrone retorno = desserializarRetornoDrone(packet);
+                String retorno = desserializarRetornoDrone(packet);
                 if (retorno != null) {
                     String mensagemTratada = padronizarMensagem(retorno);
-                    System.out.println("Drone " + retorno.getPosicao() + ": " + mensagemTratada);
                     enviarMensagemParaServidores(mensagemTratada);
                 }
             } catch (IOException e) {
@@ -56,12 +54,12 @@ public class DataCenter implements Runnable {
     }
 
 
-    private RetornoDrone desserializarRetornoDrone(DatagramPacket pacote) {
+    private String desserializarRetornoDrone(DatagramPacket pacote) {
         try (
                 ByteArrayInputStream byteStream = new ByteArrayInputStream(pacote.getData(), 0, pacote.getLength());
                 ObjectInputStream in = new ObjectInputStream(byteStream)
         ) {
-            return (RetornoDrone) in.readObject();
+            return (String) in.readObject();
         } catch (Exception e) {
             System.err.println("Erro ao desserializar objeto: " + e.getMessage());
             return null;
@@ -69,28 +67,24 @@ public class DataCenter implements Runnable {
     }
 
 
-    public String padronizarMensagem(RetornoDrone msg) {
-        Posicao pos = msg.getPosicao();
-        String retorno = "";
-        switch (pos) {
-            case NORTE:
-                retorno = msg.getMensagem().replace("-", "//");
-                break;
-            case SUL:
-                retorno = msg.getMensagem().replace("(", "").replace(")", "").replace(";", "//");
-                break;
-            case LESTE:
-                retorno = msg.getMensagem().replace("{", "").replace("}", "").replace(",", "//");
-                break;
-            case OESTE:
-                retorno = msg.getMensagem().replace("#", "//");
-                break;
-        }
-        if (retorno.isEmpty()) {
-            throw new IllegalArgumentException("Mensagem inválida ou não reconhecida: " + msg.getMensagem());
-        }
+    public String padronizarMensagem(String msg) {
+        UnaryOperator<String> replaceHyphen = s -> s.replace("-", "//");
+        UnaryOperator<String> replaceParentheses = s -> s.replace("(", "").replace(")", "").replace(";", "//");
+        UnaryOperator<String> replaceBraces = s -> s.replace("{", "").replace("}", "").replace(",", "//");
+        UnaryOperator<String> replaceHash = s -> s.replace("#", "//");
 
-        return ("[" + retorno + "]");
+        return Optional.ofNullable(msg)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    if (s.contains("-")) return replaceHyphen.apply(s);
+                    if (s.contains("(")) return replaceParentheses.apply(s);
+                    if (s.contains("{")) return replaceBraces.apply(s);
+                    if (s.contains("#")) return replaceHash.apply(s);
+                    return s;
+                })
+                .map(s -> "[" + s + "]")
+                .orElseThrow(() -> new IllegalArgumentException("Mensagem inválida: " + msg));
     }
 
     public void enviarMensagemParaServidores(String mensagem) {
