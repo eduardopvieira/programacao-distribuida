@@ -16,10 +16,16 @@ public class LocServer implements Runnable {
     private MulticastSocket multicastLocServerServer;
     private ExecutorService threadPool = Executors.newFixedThreadPool(10);
     private ConsistentHash<Integer> consistentHash;
+    private List<Integer> roundRobin = Collections.synchronizedList(new ArrayList<>());
     private Set<Integer> availableServers = Collections.synchronizedSet(new HashSet<>());
 
-    public LocServer() {
-        this.consistentHash = new ConsistentHash<>(10, Collections.emptyList());
+    private boolean isRoundRobin;
+    int indice = 0;
+
+    public LocServer(boolean isRoundRobin) {
+
+        this.isRoundRobin = isRoundRobin;
+
     }
 
     @Override
@@ -62,7 +68,11 @@ public class LocServer implements Runnable {
 
     private synchronized void registerServer(int port) {
         if (availableServers.add(port)) {
-            consistentHash.add(port);
+            if (isRoundRobin) {
+                roundRobin.add(port);
+            } else {
+                consistentHash.add(port);
+            }
             System.out.println("Server registered: " + port);
             System.out.println("Available servers: " + availableServers);
         }
@@ -83,7 +93,16 @@ public class LocServer implements Runnable {
     private void handleClientConnection(Socket clientSocket) {
         try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
             String clientId = clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort();
-            Integer selectedPort = consistentHash.get(clientId);
+            Integer selectedPort;
+
+            if (isRoundRobin) {
+                //DISTRIBUIÇAO POR ROUND ROBIN
+                selectedPort = roundRobin.get(indice);
+                indice = (indice + 1) % roundRobin.size();
+            } else {
+                //DISTRIBUIÇAO PELO CONSISTENT HASHING
+                selectedPort = consistentHash.get(clientId);
+            }
 
             String response = (selectedPort != null) ?
                     "CONNECT_TO:" + selectedPort :
