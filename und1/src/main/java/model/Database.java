@@ -2,6 +2,8 @@ package model;
 
 import datastructures.HashAdaptado;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -41,7 +43,18 @@ public class Database implements Runnable {
     }
 
     private void processMessage(String message) {
-        bd.add(message);
+         bd.add(message);
         System.out.println("Mensagem adicionada ao Database: " + message);
+        logToFile(message);
+    }
+
+    private void logToFile(String message) {
+        try (FileWriter fw = new FileWriter("database_log.txt", true);
+             BufferedWriter bw = new BufferedWriter(fw)) {
+            bw.write(message);
+            bw.newLine();
+        } catch (IOException e) {
+            System.err.println("Erro ao escrever no arquivo de log: " + e.getMessage());
+        }
     }
 }
