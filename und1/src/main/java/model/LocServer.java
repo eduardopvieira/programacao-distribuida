@@ -20,6 +20,7 @@ public class LocServer implements Runnable {
     private Set<Integer> availableServers = Collections.synchronizedSet(new HashSet<>());
 
     private boolean isRoundRobin;
+    int indice = 0;
 
     public LocServer(boolean isRoundRobin) {
 
@@ -95,8 +96,11 @@ public class LocServer implements Runnable {
             Integer selectedPort;
 
             if (isRoundRobin) {
-                selectedPort = roundRobin.get(0);
+                //DISTRIBUIÇAO POR ROUND ROBIN
+                selectedPort = roundRobin.get(indice);
+                indice = (indice + 1) % roundRobin.size();
             } else {
+                //DISTRIBUIÇAO PELO CONSISTENT HASHING
                 selectedPort = consistentHash.get(clientId);
             }
 
