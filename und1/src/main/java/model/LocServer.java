@@ -23,9 +23,14 @@ public class LocServer implements Runnable {
     int indice = 0;
 
     public LocServer(boolean isRoundRobin) {
-
         this.isRoundRobin = isRoundRobin;
+        this.consistentHash = new ConsistentHash<>(10, Collections.emptyList());
 
+        if (!isRoundRobin) {
+            System.out.println("LocServer initialized with Consistent Hashing");
+        } else {
+            System.out.println("LocServer initialized with Round Robin");
+        }
     }
 
     @Override
@@ -70,13 +75,15 @@ public class LocServer implements Runnable {
         if (availableServers.add(port)) {
             if (isRoundRobin) {
                 roundRobin.add(port);
+                System.out.println("Added to Round Robin: " + port);
             } else {
                 consistentHash.add(port);
+                System.out.println("Added to Consistent Hash: " + port);
             }
-            System.out.println("Server registered: " + port);
             System.out.println("Available servers: " + availableServers);
         }
     }
+
 
 
     private void startTCPServer() throws IOException {
@@ -114,7 +121,9 @@ public class LocServer implements Runnable {
         } catch (IOException e) {
             System.err.println("Client handling error: " + e.getMessage());
         } finally {
-            try { clientSocket.close(); } catch (IOException e) { /* Ignore */ }
+            try { clientSocket.close(); } catch (IOException e) {
+                System.err.println("Error closing client socket: " + e.getMessage());
+            }
         }
     }
 }

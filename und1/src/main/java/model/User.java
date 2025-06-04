@@ -6,7 +6,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-public class User {
+public class User implements Runnable {
 
     private String ip = "127.0.0.1";
     private int port;
@@ -17,8 +17,22 @@ public class User {
         this.connectToLocServer(locServerIp, locServerPort);
     }
 
-    private void connectToLocServer(String datacenterIp, int datacenterPort) {
-        try (Socket locServerSocket = new Socket(datacenterIp, datacenterPort);
+    @Override
+    public void run() {
+        if (serverConnection == null || serverConnection.isClosed()) {
+            System.out.println("Conexão com o servidor não estabelecida.");
+            return;
+        }
+
+        try {
+            userInterface();
+        } catch (Exception e) {
+            System.out.println("Erro na interface do usuário: " + e.getMessage());
+        }
+    }
+
+    private void connectToLocServer(String locServerIp, int locServerPort) {
+        try (Socket locServerSocket = new Socket(locServerIp, locServerPort);
              BufferedReader reader = new BufferedReader(new InputStreamReader(locServerSocket.getInputStream()))) {
 
             String serverInfo = reader.readLine();
@@ -56,7 +70,7 @@ public class User {
     }
 
     private void userInterface() {
-        System.out.println("Digite 'sair' para encerrar a conexão.");
+        System.out.println("Digite '0' para encerrar a conexão.");
 
         Thread messageReceiver = new Thread(() -> {
             try (BufferedReader serverReader = new BufferedReader(
@@ -75,12 +89,11 @@ public class User {
         });
         messageReceiver.start();
 
-        // Interface para envio de mensagens
         try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
              PrintWriter writer = new PrintWriter(serverConnection.getOutputStream(), true)) {
 
             String input;
-            while (!(input = consoleReader.readLine()).equalsIgnoreCase("sair")) {
+            while (!(input = consoleReader.readLine()).equalsIgnoreCase("0")) {
                 writer.println(input);
             }
 
@@ -96,7 +109,4 @@ public class User {
         }
     }
 
-    public static void main(String[] args) {
-        new User("127.0.0.1", 50000);
-    }
 }
