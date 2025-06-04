@@ -35,16 +35,15 @@ public class Drone implements Runnable {
     }
 
     public String gerarDados() {
-        double pressao = Math.random() * 100;
-        double radiacao = Math.random() * 100;
-        double temperatura = Math.random() * 100;
+        double temperatura = Math.random() * 50;
+        double pressao = 950 + Math.random() * (1050 - 950);
+        double radiacao = Math.random() * 1000;
         double umidade = Math.random() * 100;
 
         return formatarDados(pressao, radiacao, temperatura, umidade);
     }
 
     public String formatarDados(double pressao, double radiacao, double temperatura, double umidade) {
-        String ret;
         switch (posicao) {
             case NORTE:
                 //formato: pressao-radiacao-temperatura-umidade
