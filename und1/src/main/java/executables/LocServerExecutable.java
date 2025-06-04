@@ -7,6 +7,8 @@ public class LocServerExecutable {
         Thread locserverConsistentHash = new Thread(new LocServer(false));
         locserverConsistentHash.start();
 
+        //usando round robin
+
         //Thread locserverRoundRobin = new Thread(new LocServer(true));
         //locserverRoundRobin.start();
     }
