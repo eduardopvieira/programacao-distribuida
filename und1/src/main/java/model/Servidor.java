@@ -127,8 +127,8 @@ public class Servidor implements Runnable {
             DatagramPacket packet = new DatagramPacket(
                     data,
                     data.length,
-                    InetAddress.getByName("233.0.0.0"), // Grupo multicast do LocServer
-                    4449 // Porta multicast do LocServer
+                    InetAddress.getByName("233.0.0.0"), // grupo multicast do LocServer
+                    4449 // porta multicast do LocServer
             );
             socket.send(packet);
             System.out.println("Registrado no LocServer");
@@ -155,10 +155,9 @@ public class Servidor implements Runnable {
             System.out.println("Cliente conectado: " + clientSocket.getInetAddress());
             out.println("Bem-vindo ao servidor " + PORT);
 
-            // Mantém a conexão aberta
             while (true) {
                 String input = in.readLine();
-                if (input == null || input.equalsIgnoreCase("exit")) {
+                if (input == null || input.equalsIgnoreCase("0")) {
                     break;
                 }
             }
@@ -166,7 +165,7 @@ public class Servidor implements Runnable {
         } catch (IOException e) {
             System.err.println("Erro com cliente: " + e.getMessage());
         } finally {
-            connectedClients.remove(clientSocket);  // Remove da lista
+            connectedClients.remove(clientSocket);
             try {
                 clientSocket.close();
             } catch (IOException e) {
