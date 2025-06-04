@@ -1,8 +1,13 @@
 package model;
 
+import model.auxiliar.Posicao;
+
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.Locale;
 
 public class Drone implements Runnable {
     private Posicao posicao;
@@ -19,7 +24,6 @@ public class Drone implements Runnable {
         while (true) {
             int tempoAleatorio = tempos[new java.util.Random().nextInt(tempos.length)];
             String dados = gerarDados();
-            System.out.println("Drone na posição " + posicao + ": " + dados);
             enviarPorMulticast(dados);
             try {
                 Thread.sleep(tempoAleatorio);
@@ -31,39 +35,61 @@ public class Drone implements Runnable {
     }
 
     public String gerarDados() {
-        double pressao = Math.random() * 100;
-        double radiacao = Math.random() * 100;
-        double temperatura = Math.random() * 100;
+        double temperatura = Math.random() * 50;
+        double pressao = 950 + Math.random() * (1050 - 950);
+        double radiacao = Math.random() * 1000;
         double umidade = Math.random() * 100;
 
         return formatarDados(pressao, radiacao, temperatura, umidade);
     }
 
     public String formatarDados(double pressao, double radiacao, double temperatura, double umidade) {
-        return switch (posicao) {
-            case NORTE -> String.format("%.2f-%.2f-%.2f-%.2f", pressao, radiacao, temperatura, umidade);
-            case SUL -> String.format("(%.2f;%.2f;%.2f;%.2f)", pressao, radiacao, temperatura, umidade);
-            case LESTE -> String.format("{%.2f,%.2f,%.2f,%.2f}", pressao, radiacao, temperatura, umidade);
-            case OESTE -> String.format("%.2f#%.2f#%.2f#%.2f", pressao, radiacao, temperatura, umidade);
-            default -> throw new IllegalArgumentException("Posição do drone desconhecida: " + posicao);
-        };
+        switch (posicao) {
+            case NORTE:
+                //formato: pressao-radiacao-temperatura-umidade
+                return String.format(Locale.US, "%.2f-%.2f-%.2f-%.2f", pressao, radiacao, temperatura, umidade);
+
+            case SUL:
+                //formato: (pressao;radiacao;temperatura;umidade)
+                return String.format(Locale.US,"(%.2f;%.2f;%.2f;%.2f)", pressao, radiacao, temperatura, umidade);
+
+            case LESTE:
+                //formato: {pressao,radiacao,temperatura,umidade}
+                return String.format(Locale.US,"{%.2f,%.2f,%.2f,%.2f}", pressao, radiacao, temperatura, umidade);
+
+            case OESTE:
+                //formato: pressao#radiacao#temperatura#umidade
+                return String.format(Locale.US,"%.2f#%.2f#%.2f#%.2f", pressao, radiacao, temperatura, umidade);
+
+            default:
+                throw new IllegalArgumentException("Posição do drone desconhecida: " + posicao);
+        }
+
     }
 
-    private void enviarPorMulticast(String mensagem) {
+    private void enviarPorMulticast(String msg) {
         String grupo = "230.0.0.0";
         int porta = 4446;
 
-        try (DatagramSocket socket = new DatagramSocket()) {
+        try (DatagramSocket socket = new DatagramSocket();
+             ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+             ObjectOutputStream out = new ObjectOutputStream(byteStream)) {
 
-            byte[] dados = mensagem.getBytes();
+            out.writeObject(msg);
+            out.flush();
+
+            byte[] dados = byteStream.toByteArray();
             InetAddress enderecoGrupo = InetAddress.getByName(grupo);
             DatagramPacket pacote = new DatagramPacket(dados, dados.length, enderecoGrupo, porta);
             socket.send(pacote);
-            System.out.println("Drone " + this.posicao + "enviou a mensagem "+ mensagem);
+
+            System.out.println("Drone " + this.posicao + " enviou a mensagem: " + msg);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
 
 }
