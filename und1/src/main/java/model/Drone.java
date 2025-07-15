@@ -9,7 +9,7 @@ import java.util.Random;
 
 public class Drone implements Runnable {
     private Posicao posicao;
-    private final int[] tempos = {2000, 3000, 4000, 5000};// Intervalo de 2 a 5 segundos [cite: 31]
+    private final int[] tempos = {2000, 3000, 4000, 5000};// Intervalo de 2 a 5 segundos
 
     // Atributos MQTT
     private MqttClient mqttClient;

@@ -23,8 +23,8 @@ public class DroneExecutables {
 
             executor.shutdown();
 
-            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
-                System.out.println("Forçando encerramento após 30 segundos");
+            if (!executor.awaitTermination(200, TimeUnit.SECONDS)) {
+                System.out.println("Forçando encerramento após 100 segundos");
                 executor.shutdownNow();
             }
 
