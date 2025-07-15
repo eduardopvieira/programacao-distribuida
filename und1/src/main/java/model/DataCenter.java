@@ -36,27 +36,26 @@ public class DataCenter implements Runnable {
     @Override
     public void run() {
         try {
-            initializeMqttClientDrones(); // Inicializa o cliente MQTT para consumir dos drones
-            initializeRabbitMQ(); // Inicializa o RabbitMQ como publicador
-            initializeMqttClientTempoReal(); // Inicializa o MQTT para tempo real como publicador
+            initializeMqttClientDrones();
+            initializeRabbitMQ();
+            initializeMqttClientTempoReal();
 
-            // A lógica de escuta MQTT para drones será definida no callback, o run apenas mantém o cliente conectado
             System.out.println("DataCenter: Gateway em operação. Consumindo drones e publicando em RabbitMQ/MQTT.");
             while (!Thread.currentThread().isInterrupted()) {
-                Thread.sleep(1000); // Mantém a thread do DataCenter viva
+                Thread.sleep(1000);
             }
 
         } catch (MqttException e) {
             System.err.println("DataCenter: Erro de MQTT durante a inicialização ou operação: " + e.getMessage());
             e.printStackTrace();
-        } catch (IOException | TimeoutException e) { // Adicionado TimeoutException para RabbitMQ
+        } catch (IOException | TimeoutException e) {
             System.err.println("DataCenter: Erro de RabbitMQ/I/O durante a inicialização: " + e.getMessage());
             e.printStackTrace();
         } catch (InterruptedException e) {
             System.out.println("DataCenter interrompido.");
             Thread.currentThread().interrupt();
         } finally {
-            closeConnections(); // Novo método para fechar todas as conexões
+            closeConnections();
         }
     }
 
