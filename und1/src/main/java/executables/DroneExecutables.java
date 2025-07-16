@@ -3,35 +3,61 @@ package executables;
 import model.Drone;
 import model.auxiliar.Posicao;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class DroneExecutables {
+
+    private static final long SIMULATION_DURATION_MINUTES = 3;                                  // Duração total da simulação 
+
     public static void main(String[] args) {
 
-        ExecutorService executor = null;
+        ExecutorService droneExecutor = Executors.newFixedThreadPool(4); 
+        ScheduledExecutorService mainScheduler = Executors.newSingleThreadScheduledExecutor();  //  controla o tempo de simulação
+
+        List<Drone> drones = new ArrayList<>(); 
 
         try {
+            Drone droneNorte = new Drone(Posicao.NORTE);
+            Drone droneSul = new Drone(Posicao.SUL);
+            Drone droneLeste = new Drone(Posicao.LESTE);
+            Drone droneOeste = new Drone(Posicao.OESTE);
 
-            executor = Executors.newFixedThreadPool(4);
+            drones.add(droneNorte);
+            drones.add(droneSul);
+            drones.add(droneLeste);
+            drones.add(droneOeste);
 
-            executor.execute(new Drone(Posicao.NORTE));
-            executor.execute(new Drone(Posicao.SUL));
-            executor.execute(new Drone(Posicao.LESTE));
-            executor.execute(new Drone(Posicao.OESTE));
+            droneExecutor.execute(droneNorte);
+            droneExecutor.execute(droneSul);
+            droneExecutor.execute(droneLeste);
+            droneExecutor.execute(droneOeste);
 
-            executor.shutdown();
+            System.out.println("Iniciando simulação de Drones por " + SIMULATION_DURATION_MINUTES + " minutos.");
 
-            if (!executor.awaitTermination(200, TimeUnit.SECONDS)) {
-                System.out.println("Forçando encerramento após 200 segundos");
-                executor.shutdownNow();
-            }
+            mainScheduler.schedule(() -> {
+                System.out.println("\n--- Fim da Duração da Simulação (" + SIMULATION_DURATION_MINUTES + " minutos) ---");
+                droneExecutor.shutdownNow(); 
+                drones.forEach(Drone::cleanup); 
+
+                System.out.println("Encerrando todos os processos da simulação...");
+                System.exit(0); 
+            }, SIMULATION_DURATION_MINUTES, TimeUnit.MINUTES);
+
+            droneExecutor.awaitTermination(SIMULATION_DURATION_MINUTES + 1, TimeUnit.MINUTES); // Tempo extra para o shutdown
 
         } catch (InterruptedException e) {
-            System.out.println("Main thread interrompida");
-            executor.shutdownNow();
+            System.out.println("Main thread interrompida durante a espera.");
             Thread.currentThread().interrupt();
+        } finally {
+            droneExecutor.shutdownNow();    // Garante que o executor seja desligado
+            drones.forEach(Drone::cleanup); // Chama cleanup novamente, caso a InterruptedException tenha pulado a chamada anterior
+            mainScheduler.shutdownNow();    // Desliga o scheduler principal
+            System.out.println("Execução de Drones finalizada.");
         }
     }
 }
