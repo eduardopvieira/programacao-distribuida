@@ -87,7 +87,7 @@ public class Database implements Runnable {
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String routingKey = delivery.getEnvelope().getRoutingKey();
             String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-            // System.out.println("[Database] Recebeu de '" + routingKey + "': '" + message + "'"); // Descomente para ver cada mensagem
+             System.out.println("[Database] Recebeu de '" + routingKey + "': '" + message + "'"); // Descomente para ver cada mensagem
 
             processAndAggregateMessage(routingKey, message); // Processa e agrega
             logToFile(routingKey + " -> " + message); // Loga a mensagem recebida e a routingKey
@@ -139,10 +139,6 @@ public class Database implements Runnable {
                             .computeIfAbsent(regiao, k -> new HashMap<>())
                             .put("radiacao", radiacao);
                 }
-
-                // System.out.printf("[Database] Agregado: Total=%d, Região %s=%d, Temp=%s, Umid=%s, Pressao=%s, Radiacao=%s\n",
-                // totalDadosColetados, regiao, contagemPorRegiao.get(regiao), temperatura, umidade, pressao, radiacao); // Descomente para ver agregação em tempo real
-
             } catch (NumberFormatException e) {
                 System.err.println("[Database] Erro ao parsear valores numéricos da mensagem: " + message);
             }
@@ -184,14 +180,14 @@ public class Database implements Runnable {
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                // Aguarda por ENTER para mostrar o menu e dados
+
                 while (!consoleReader.ready()) {
-                    Thread.sleep(100); // Pequeno atraso para não consumir CPU em loop
+                    Thread.sleep(100);  
                 }
                 String input = consoleReader.readLine();
                 if (input != null && (input.equalsIgnoreCase("0") || input.equalsIgnoreCase("sair"))) {
                     System.out.println("Encerrando Dashboard...");
-                    System.exit(0); // Força o encerramento da JVM
+                    System.exit(0); 
                     break;
                 }
                 displayDashboardData();
@@ -215,7 +211,7 @@ public class Database implements Runnable {
             System.out.println("\nTotal por elemento climático:");
             if (totalDadosColetados > 0) {
                 totalPorElemento.forEach((elemento, count) ->
-                        System.out.printf("  %s: %d (%.2f%%)\n", elemento, count, (double) count / totalDadosColetados * 100));
+                        System.out.printf("  %s: %d dados \n", elemento, count, (double) count / totalDadosColetados * 100));
             } else {
                 System.out.println("  Nenhum dado de elemento coletado ainda.");
             }
@@ -232,7 +228,7 @@ public class Database implements Runnable {
 
             System.out.println("\nÚltimos valores por região:");
             if (ultimosValoresPorRegiaoEElemento.isEmpty()) {
-                System.out.println("  Nenhum valor recente disponível.");
+                System.out.println("  Nenhum valor disponível.");
             } else {
                 // Listar regiões por temperatura
                 System.out.println("\n  Temperaturas por Região:");

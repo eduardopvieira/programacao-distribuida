@@ -15,16 +15,14 @@ public class ConsumidorRabbitMQExecutable {
             System.out.println("\n--- Iniciando Consumidor RabbitMQ ---");
             ConsumidorRabbitMQ consumidor = new ConsumidorRabbitMQ();
             new Thread(consumidor).start();
-        }, 10, TimeUnit.SECONDS); // Inicia após 10 segundos [cite: 59]
+        }, 10, TimeUnit.SECONDS); 
 
-        // Mantém o scheduler ativo por um tempo, se necessário, ou até a aplicação ser fechada manualmente
-        // ou por outro scheduler que derrube o executor principal.
         try {
-            // Deixa o main thread ativa por um tempo para que o consumidor possa rodar
-            Thread.sleep(TimeUnit.MINUTES.toMillis(5)); // Ex: mantém por 5 minutos
+            
+            Thread.sleep(TimeUnit.MINUTES.toMillis(5)); 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Consumidor RabbitMQ Executable interrompido.");
+            System.out.println("Consumidor RabbitMQ parou.");
         } finally {
             scheduler.shutdownNow();
         }

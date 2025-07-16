@@ -15,12 +15,9 @@ import java.util.function.UnaryOperator;
 
 public class DataCenter implements Runnable {
 
-    // Atributos MQTT para consumir dos drones (já implementado)
     private MqttClient mqttClientDrones;
     private final String BROKER_MQTT_DRONES = "tcp://broker.emqx.io:1883";
     private final String TOPICO_ASSINATURA_DRONES = "drones/#"; // Assina todos os drones
-
-    // --- NOVOS ATRIBUTOS PARA PUBLICAR PARA USUÁRIOS/DASHBOARDS ---
 
     // Atributos para RabbitMQ (para histórico/dashboard)
     private Connection connectionRabbitMQ;
@@ -40,7 +37,6 @@ public class DataCenter implements Runnable {
             initializeRabbitMQ(); // Inicializa o RabbitMQ como publicador
             initializeMqttClientTempoReal(); // Inicializa o MQTT para tempo real como publicador
 
-            // A lógica de escuta MQTT para drones será definida no callback, o run apenas mantém o cliente conectado
             System.out.println("DataCenter: Gateway em operação. Consumindo drones e publicando em RabbitMQ/MQTT.");
             while (!Thread.currentThread().isInterrupted()) {
                 Thread.sleep(1000); // Mantém a thread do DataCenter viva
@@ -49,7 +45,7 @@ public class DataCenter implements Runnable {
         } catch (MqttException e) {
             System.err.println("DataCenter: Erro de MQTT durante a inicialização ou operação: " + e.getMessage());
             e.printStackTrace();
-        } catch (IOException | TimeoutException e) { // Adicionado TimeoutException para RabbitMQ
+        } catch (IOException | TimeoutException e) { 
             System.err.println("DataCenter: Erro de RabbitMQ/I/O durante a inicialização: " + e.getMessage());
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -161,10 +157,10 @@ public class DataCenter implements Runnable {
 
     // Método padronizarMensagem permanece o mesmo, mas a extração da posição é feita no callback
     public String padronizarMensagem(String msg) {
-        UnaryOperator<String> replaceHyphen = s -> s.replace("-", "|"); // Alterado para "|"
-        UnaryOperator<String> replaceParentheses = s -> s.replace("(", "").replace(")", "").replace(";", "|"); // Alterado para "|"
-        UnaryOperator<String> replaceBraces = s -> s.replace("{", "").replace("}", "").replace(",", "|"); // Alterado para "|"
-        UnaryOperator<String> replaceHash = s -> s.replace("#", "|"); // Alterado para "|"
+        UnaryOperator<String> replaceHyphen = s -> s.replace("-", "|"); 
+        UnaryOperator<String> replaceParentheses = s -> s.replace("(", "").replace(")", "").replace(";", "|"); 
+        UnaryOperator<String> replaceBraces = s -> s.replace("{", "").replace("}", "").replace(",", "|"); 
+        UnaryOperator<String> replaceHash = s -> s.replace("#", "|"); 
 
         String[] valores;
         String limpo = Optional.ofNullable(msg)
@@ -192,7 +188,7 @@ public class DataCenter implements Runnable {
             return String.format("[%s | %s | %s | %s]", temperatura, umidade, pressao, radiacao);
         } else {
             System.err.println("Formato de mensagem inesperado após padronização: " + limpo);
-            return limpo; // Retorna o limpo para não quebrar, mas com aviso
+            return limpo; 
         }
     }
 
@@ -219,19 +215,4 @@ public class DataCenter implements Runnable {
         }
     }
 
-    // O método 'enviarMensagemParaServidores' e as classes de Servidor/LocServer/User baseados em Multicast/TCP
-    // não são mais o caminho principal para a disponibilização dos dados a usuários.
-    // Eles serão ajustados para consumir dos brokers RabbitMQ e MQTT.
-    // Por isso, este método original será removido no próximo passo ou mantido como esqueleto se houver outro uso.
-    // public void enviarMensagemParaServidores(String mensagem) { /* ... */ }
-    // Por enquanto, vou comentar a chamada dentro de messageArrived.
-
-    // Removendo este método pois ele será substituído pela publicação em RabbitMQ/MQTT
-    private void enviarMensagemParaServidores(String mensagem) {
-        // ESTE MÉTODO ESTÁ OBSOLETO E SERÁ REMOVIDO OU REFEITO EM PRÓXIMOS PASSOS
-        // Não precisamos mais enviar via UDP Multicast para Servidores genéricos,
-        // pois a disponibilização será via RabbitMQ e MQTT.
-        // A lógica do Servidor e User será reescrita para consumir diretamente desses brokers.
-        System.out.println("[DataCenter] (Aviso) Chamada ao método obsoleto 'enviarMensagemParaServidores': " + mensagem);
-    }
 }

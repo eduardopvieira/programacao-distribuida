@@ -51,7 +51,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
 
             @Override
             public void deliveryComplete(IMqttDeliveryToken token) {
-                // Não aplicável para um consumidor
+                
             }
         });
 
@@ -67,7 +67,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         }
 
         try {
-            setupSubscription(); // Configura a assinatura com base na entrada do usuário
+            setupSubscription(); 
         } catch (MqttException | InterruptedException e) {
             System.err.println("[ConsumidorMQTTTempoReal] Erro ao configurar assinatura ou processar mensagens: " + e.getMessage());
             e.printStackTrace();
@@ -96,7 +96,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         System.out.println("  7. Dados de UMIDADE de todas as regiões (" + TOPICO_BASE + "+/umidade)");
         System.out.println("  8. Dados de PRESSAO de todas as regiões (" + TOPICO_BASE + "+/pressao)");
         System.out.println("  9. Dados de RADIACAO de todas as regiões (" + TOPICO_BASE + "+/radiacao)");
-        System.out.println("  (Você pode combinar filtros separando por vírgula, ex: 2,4 para Norte e Leste)");
+        System.out.println("  ( Pode combinar filtros separando por virgula, (2,4 = dados de Norte e Leste)");
         System.out.print("Sua escolha: ");
 
         String choice = null;
@@ -108,7 +108,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         List<String> topicFilters = parseChoices(choice);
 
         if (!topicFilters.isEmpty()) {
-            // Converte a lista para array de Strings e um array de QoS
+            
             String[] topicsArray = topicFilters.toArray(new String[0]);
             int[] qosArray = new int[topicsArray.length];
             Arrays.fill(qosArray, 1); // QoS 1 para todas as assinaturas
@@ -119,8 +119,6 @@ public class ConsumidorMQTTTempoReal implements Runnable {
             System.out.println("[ConsumidorMQTTTempoReal] Nenhuma assinatura válida selecionada.");
         }
 
-
-        // Mantém a thread do consumidor viva para receber mensagens
         System.out.println("[ConsumidorMQTTTempoReal] [*] Esperando mensagens. Para sair, feche a aplicação.");
         while (!Thread.currentThread().isInterrupted()) {
             Thread.sleep(1000);
@@ -138,15 +136,15 @@ public class ConsumidorMQTTTempoReal implements Runnable {
                         case "3": return TOPICO_BASE + "sul/dados";
                         case "4": return TOPICO_BASE + "leste/dados";
                         case "5": return TOPICO_BASE + "oeste/dados";
-                        case "6": return TOPICO_BASE + "+/temperatura"; // Assumindo que o formato será '.../regiao/elemento'
+                        case "6": return TOPICO_BASE + "+/temperatura"; 
                         case "7": return TOPICO_BASE + "+/umidade";
                         case "8": return TOPICO_BASE + "+/pressao";
                         case "9": return TOPICO_BASE + "+/radiacao";
-                        default: return ""; // Filtro inválido
+                        default: return ""; 
                     }
                 })
                 .filter(s -> !s.isEmpty())
                 .distinct()
-                .toList(); // Usa toList() para Java 16+, para versões anteriores use .collect(Collectors.toList())
+                .toList(); 
     }
 }

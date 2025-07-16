@@ -16,7 +16,7 @@ import java.util.concurrent.TimeoutException;
 public class ConsumidorRabbitMQ implements Runnable {
 
     private final String BROKER_HOST = "localhost";
-    private final String EXCHANGE_NAME = "dados_climaticos_historico"; // Mesmo nome do DataCenter
+    private final String EXCHANGE_NAME = "dados_climaticos_historico"; 
 
     private Connection connection;
     private Channel channel;
@@ -38,11 +38,8 @@ public class ConsumidorRabbitMQ implements Runnable {
         connection = factory.newConnection();
         channel = connection.createChannel();
 
-        // Declara o exchange como 'topic' (precisa ser o mesmo do produtor)
         channel.exchangeDeclare(EXCHANGE_NAME, "topic");
 
-        // Cria uma fila temporária, exclusiva e auto-deletável
-        // Esta fila não é durável, então as mensagens não persistem se o consumidor for reiniciado
         queueName = channel.queueDeclare().getQueue();
 
         System.out.println("[ConsumidorRabbitMQ] Conectado e aguardando definição de filtros.");
@@ -57,12 +54,11 @@ public class ConsumidorRabbitMQ implements Runnable {
         }
 
         try {
-            setupSubscription(); // Configura a assinatura com base na entrada do usuário
+            setupSubscription(); 
         } catch (Exception e) {
-            System.err.println("[ConsumidorRabbitMQ] Erro ao configurar assinatura ou processar mensagens: " + e.getMessage());
+            System.err.println("[ConsumidorRabbitMQ] Erro: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            // Garante que as conexões sejam fechadas quando a thread termina
             try {
                 if (channel != null && channel.isOpen()) {
                     channel.close();
@@ -96,11 +92,6 @@ public class ConsumidorRabbitMQ implements Runnable {
         String choice = consoleReader.readLine();
         List<String> bindingKeys = parseChoices(choice);
 
-        // Desfaz qualquer binding anterior antes de criar novos
-        // (Opcional, mas útil se o mesmo consumidor for reconfigurado)
-        // Por ser uma fila temporária, ao reiniciar a aplicação, um novo binding é feito
-        // Para uma fila durável, seria importante gerenciar os bindings.
-
         System.out.println("[ConsumidorRabbitMQ] Assinando com os filtros: " + bindingKeys);
         for (String bindingKey : bindingKeys) {
             channel.queueBind(queueName, EXCHANGE_NAME, bindingKey);
@@ -111,8 +102,6 @@ public class ConsumidorRabbitMQ implements Runnable {
             String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
             System.out.println(String.format("[ConsumidorRabbitMQ] Recebeu de '%s': '%s'",
                     delivery.getEnvelope().getRoutingKey(), message));
-            // Implementar lógica de armazenamento em "base de dados específica" aqui
-            // Por enquanto, apenas imprime.
         };
 
         // autoAck = true (reconhecimento automático)
@@ -140,11 +129,11 @@ public class ConsumidorRabbitMQ implements Runnable {
                         case "7": return "*.umidade";
                         case "8": return "*.pressao";
                         case "9": return "*.radiacao";
-                        default: return ""; // Filtro inválido
+                        default: return ""; 
                     }
                 })
                 .filter(s -> !s.isEmpty())
                 .distinct()
-                .toList(); // Usa toList() para Java 16+, para versões anteriores use .collect(Collectors.toList())
+                .toList(); 
     }
 }
