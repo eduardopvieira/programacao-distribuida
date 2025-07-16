@@ -4,7 +4,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
-import datastructures.HashAdaptado; // Mantido para compatibilidade, mas pode ser substituído
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -13,7 +12,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap; // Para manter a ordem das chaves na impressão
+import java.util.LinkedHashMap; 
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
@@ -23,23 +22,16 @@ import java.util.stream.Collectors;
 
 public class Database implements Runnable {
 
-    // (bd está comentado pois a agregação está em Maps agora)
-    // private HashAdaptado bd = new HashAdaptado();
 
-    // Atributos RabbitMQ para consumir do DataCenter (histórico)
     private Connection connectionRabbitMQ;
     private Channel channelRabbitMQ;
     private final String BROKER_HOST = "localhost";
-    private final String EXCHANGE_NAME = "dados_climaticos_historico"; // Mesmo nome do DataCenter
-    private String queueName; // Fila para o Database
-
-    // --- Atributos para Agregação de Dados para Dashboard ---
-    private volatile long totalDadosColetados = 0; // volatile para garantir visibilidade entre threads
-    private Map<String, Long> totalPorElemento = new HashMap<>(); // Ex: "temperatura" -> count
-    private Map<String, Map<String, Double>> ultimosValoresPorRegiaoEElemento = new HashMap<>(); // Último valor para dashboard
-    private Map<String, Long> contagemPorRegiao = new HashMap<>(); // Total de dados por região
-
-    // Padrão para parsear a mensagem padronizada: [temperatura | umidade | pressao | radiacao]
+    private final String EXCHANGE_NAME = "dados_climaticos_historico"; 
+    private String queueName;                           // Fila para o Database
+    private volatile long totalDadosColetados = 0;      // volatile para garantir visibilidade entre threads
+    private Map<String, Long> totalPorElemento = new HashMap<>(); 
+    private Map<String, Map<String, Double>> ultimosValoresPorRegiaoEElemento = new HashMap<>(); 
+    private Map<String, Long> contagemPorRegiao = new HashMap<>(); 
     private static final Pattern PADRONIZADO_PATTERN = Pattern.compile("\\[(.*?) \\| (.*?) \\| (.*?) \\| (.*?)\\]");
 
     @Override
@@ -48,12 +40,10 @@ public class Database implements Runnable {
             initializeRabbitMQConsumer();
             System.out.println("Database: Conectado ao RabbitMQ e aguardando mensagens de histórico.");
 
-            // Thread separada para a interface do usuário
             Thread dashboardInterfaceThread = new Thread(this::runDashboardInterface);
-            dashboardInterfaceThread.setDaemon(true); // Garante que a thread não impeça o encerramento do JVM
+            dashboardInterfaceThread.setDaemon(true); 
             dashboardInterfaceThread.start();
 
-            // Mantém a thread do Database viva para receber mensagens
             while (!Thread.currentThread().isInterrupted()) {
                 Thread.sleep(1000);
             }
@@ -78,28 +68,28 @@ public class Database implements Runnable {
 
         channelRabbitMQ.exchangeDeclare(EXCHANGE_NAME, "topic");
 
-        queueName = "database_queue"; // Um nome fixo para a fila do Database
-        channelRabbitMQ.queueDeclare(queueName, true, false, false, null); // Durável = true
+        queueName = "database_queue"; 
+        channelRabbitMQ.queueDeclare(queueName, true, false, false, null); 
 
-        channelRabbitMQ.queueBind(queueName, EXCHANGE_NAME, "#"); // Assina tudo do topic exchange
+        channelRabbitMQ.queueBind(queueName, EXCHANGE_NAME, "#"); 
         System.out.println("Database: Fila '" + queueName + "' ligada ao exchange '" + EXCHANGE_NAME + "' com chave '#'.");
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String routingKey = delivery.getEnvelope().getRoutingKey();
             String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-             System.out.println("[Database] Recebeu de '" + routingKey + "': '" + message + "'"); // Descomente para ver cada mensagem
+             System.out.println("[Database] Recebeu de '" + routingKey + "': '" + message + "'"); 
 
-            processAndAggregateMessage(routingKey, message); // Processa e agrega
-            logToFile(routingKey + " -> " + message); // Loga a mensagem recebida e a routingKey
+            processAndAggregateMessage(routingKey, message); 
+            logToFile(routingKey + " -> " + message); 
 
-            channelRabbitMQ.basicAck(delivery.getEnvelope().getDeliveryTag(), false); // Acknowledge manual
+            channelRabbitMQ.basicAck(delivery.getEnvelope().getDeliveryTag(), false); 
         };
 
         channelRabbitMQ.basicConsume(queueName, false, deliverCallback, consumerTag -> { });
     }
 
     private void processAndAggregateMessage(String routingKey, String message) {
-        // Extrai a posição da routingKey (ex: "norte.dados" -> "norte")
+        
         String[] keyParts = routingKey.split("\\.");
         String regiao = keyParts.length > 0 ? keyParts[0] : "desconhecido";
 
@@ -118,14 +108,14 @@ public class Database implements Runnable {
                 double pressao = Double.parseDouble(matcher.group(3).trim());
                 double radiacao = Double.parseDouble(matcher.group(4).trim());
 
-                synchronized (this) { // Sincroniza o acesso aos contadores compartilhados
-                    // Atualizar contadores por elemento
+                synchronized (this) { 
+                    
                     totalPorElemento.merge("temperatura", 1L, Long::sum);
                     totalPorElemento.merge("umidade", 1L, Long::sum);
                     totalPorElemento.merge("pressao", 1L, Long::sum);
                     totalPorElemento.merge("radiacao", 1L, Long::sum);
 
-                    // Armazenar últimos valores por região e elemento (para listagens)
+                    
                     ultimosValoresPorRegiaoEElemento
                             .computeIfAbsent(regiao, k -> new HashMap<>())
                             .put("temperatura", temperatura);
@@ -170,13 +160,12 @@ public class Database implements Runnable {
         }
     }
 
-    // --- MÉTODOS PARA DASHBOARD NO CONSOLE ---
 
     private void runDashboardInterface() {
         BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("\n--- Dashboard do Sistema Climático ---");
         System.out.println("Pressione ENTER a qualquer momento para ver o menu e as estatísticas atualizadas.");
-        System.out.println("Digite '0' ou 'sair' para encerrar a aplicação.\n");
+        System.out.println("Digite '0' ou para encerrar a aplicação.\n");
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
@@ -185,13 +174,13 @@ public class Database implements Runnable {
                     Thread.sleep(100);  
                 }
                 String input = consoleReader.readLine();
-                if (input != null && (input.equalsIgnoreCase("0") || input.equalsIgnoreCase("sair"))) {
+                if (input != null && (input.equalsIgnoreCase("0"))) {
                     System.out.println("Encerrando Dashboard...");
                     System.exit(0); 
                     break;
                 }
                 displayDashboardData();
-                System.out.println("\nPressione ENTER para atualizar ou digite '0'/'sair' para sair.");
+                System.out.println("\nPressione ENTER para atualizar ou digite '0' para sair.");
 
             } catch (IOException e) {
                 System.err.println("Erro de leitura do console: " + e.getMessage());
@@ -205,7 +194,7 @@ public class Database implements Runnable {
 
     private void displayDashboardData() {
         System.out.println("\n--- DADOS CLIMÁTICOS ATUAIS ---");
-        synchronized (this) { // Sincroniza para garantir consistência dos dados agregados
+        synchronized (this) { 
             System.out.println("Total de dados coletados: " + totalDadosColetados);
 
             System.out.println("\nTotal por elemento climático:");
@@ -230,25 +219,22 @@ public class Database implements Runnable {
             if (ultimosValoresPorRegiaoEElemento.isEmpty()) {
                 System.out.println("  Nenhum valor disponível.");
             } else {
-                // Listar regiões por temperatura
+                
                 System.out.println("\n  Temperaturas por Região:");
                 getTemperaturasPorRegiao().entrySet().stream()
-                        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())) // Opcional: ordenar
+                        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())) 
                         .forEach(entry -> System.out.printf("    %s: %.2f°C\n", entry.getKey().toUpperCase(), entry.getValue()));
 
-                // Listar regiões por umidade
                 System.out.println("\n  Umidades por Região:");
                 getUmidadesPorRegiao().entrySet().stream()
                         .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
                         .forEach(entry -> System.out.printf("    %s: %.2f%%\n", entry.getKey().toUpperCase(), entry.getValue()));
 
-                // Listar regiões por pressão
                 System.out.println("\n  Pressões por Região:");
                 getPressoesPorRegiao().entrySet().stream()
                         .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
                         .forEach(entry -> System.out.printf("    %s: %.2f hPa\n", entry.getKey().toUpperCase(), entry.getValue()));
 
-                // Listar regiões por radiação
                 System.out.println("\n  Radiação por Região:");
                 getRadiacoesPorRegiao().entrySet().stream()
                         .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
@@ -258,7 +244,6 @@ public class Database implements Runnable {
         System.out.println("-----------------------------\n");
     }
 
-    // --- Métodos para obter dados para Dashboard (permanecem os mesmos, mas agora chamados internamente) ---
     public long getTotalDadosColetados() {
         synchronized (this) { return totalDadosColetados; }
     }
@@ -269,10 +254,9 @@ public class Database implements Runnable {
 
     public Map<String, Double> getPercentualPorElemento() {
         synchronized (this) {
-            Map<String, Double> percentuais = new LinkedHashMap<>(); // LinkedHashMap para manter ordem
+            Map<String, Double> percentuais = new LinkedHashMap<>(); 
             if (totalDadosColetados == 0) return percentuais;
 
-            // Ordena os elementos para uma exibição consistente
             totalPorElemento.entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())
                     .forEach(entry ->
@@ -284,9 +268,8 @@ public class Database implements Runnable {
 
     public Map<String, Map<String, Double>> getUltimosValoresPorRegiaoEElemento() {
         synchronized (this) {
-            // Retorna uma cópia defensiva
             return ultimosValoresPorRegiaoEElemento.entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashMap<>(e.getValue())));
+                    .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashMap<>(e.getValue()))); //retorna uma coopia dos elementos guardados 
         }
     }
 
@@ -313,7 +296,6 @@ public class Database implements Runnable {
     private Map<String, Double> getValuesByElement(String elementName) {
         synchronized (this) {
             Map<String, Double> values = new LinkedHashMap<>();
-            // Ordena as regiões para uma exibição consistente
             ultimosValoresPorRegiaoEElemento.entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())
                     .forEach(entry ->

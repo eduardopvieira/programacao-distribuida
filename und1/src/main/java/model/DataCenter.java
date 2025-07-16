@@ -18,28 +18,24 @@ public class DataCenter implements Runnable {
     private MqttClient mqttClientDrones;
     private final String BROKER_MQTT_DRONES = "tcp://broker.emqx.io:1883";
     private final String TOPICO_ASSINATURA_DRONES = "drones/#"; // Assina todos os drones
-
-    // Atributos para RabbitMQ (para histórico/dashboard)
     private Connection connectionRabbitMQ;
     private Channel channelRabbitMQ;
-    private final String EXCHANGE_RABBITMQ = "dados_climaticos_historico"; // Nome do exchange para RabbitMQ
-
-    // Atributos para MQTT (para tempo real/dashboard dinâmico)
+    private final String EXCHANGE_RABBITMQ = "dados_climaticos_historico"; 
     private MqttClient mqttClientTempoReal;
-    private final String BROKER_MQTT_TEMPO_REAL = "tcp://broker.hivemq.com:1883"; // Usando outro broker para diferenciar
-    private final String TOPICO_BASE_MQTT_TEMPO_REAL = "dados_climaticos_tempo_real/"; // Tópico base para MQTT tempo real
+    private final String BROKER_MQTT_TEMPO_REAL = "tcp://broker.hivemq.com:1883"; 
+    private final String TOPICO_BASE_MQTT_TEMPO_REAL = "dados_climaticos_tempo_real/"; 
 
 
     @Override
     public void run() {
         try {
-            initializeMqttClientDrones(); // Inicializa o cliente MQTT para consumir dos drones
-            initializeRabbitMQ(); // Inicializa o RabbitMQ como publicador
-            initializeMqttClientTempoReal(); // Inicializa o MQTT para tempo real como publicador
+            initializeMqttClientDrones();                       // Inicializa o cliente MQTT para consumir dos drones
+            initializeRabbitMQ();                               // Inicializa o RabbitMQ como publicador
+            initializeMqttClientTempoReal();                    // Inicializa o MQTT para tempo real como publicador
 
             System.out.println("DataCenter: Gateway em operação. Consumindo drones e publicando em RabbitMQ/MQTT.");
             while (!Thread.currentThread().isInterrupted()) {
-                Thread.sleep(1000); // Mantém a thread do DataCenter viva
+                Thread.sleep(1000); 
             }
 
         } catch (MqttException e) {
@@ -52,7 +48,7 @@ public class DataCenter implements Runnable {
             System.out.println("DataCenter interrompido.");
             Thread.currentThread().interrupt();
         } finally {
-            closeConnections(); // Novo método para fechar todas as conexões
+            closeConnections(); 
         }
     }
 
@@ -74,9 +70,8 @@ public class DataCenter implements Runnable {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 String dadosRecebidos = new String(message.getPayload(), StandardCharsets.UTF_8);
-                // Extrai a posição do drone do tópico para usar como chave de roteamento
                 String[] topicParts = topic.split("/");
-                String posicaoDrone = topicParts.length > 1 ? topicParts[1] : "desconhecido"; // ex: "norte" de "drones/norte/dados"
+                String posicaoDrone = topicParts.length > 1 ? topicParts[1] : "desconhecido"; 
 
                 System.out.println("[DataCenter] Recebeu do tópico '" + topic + "': " + dadosRecebidos);
 
@@ -84,16 +79,13 @@ public class DataCenter implements Runnable {
                 System.out.println("[DataCenter] Mensagem padronizada: " + mensagemPadronizada);
 
                 // --- Publica a mensagem padronizada nos novos endpoints ---
-                publicarEmRabbitMQ(posicaoDrone, mensagemPadronizada); // [cite: 39]
-                publicarEmMQTTParaTempoReal(posicaoDrone, mensagemPadronizada); // [cite: 47]
+                publicarEmRabbitMQ(posicaoDrone, mensagemPadronizada); 
+                publicarEmMQTTParaTempoReal(posicaoDrone, mensagemPadronizada); 
 
-                // O envio via Multicast UDP para Servidores será removido em breve
-                // enviarMensagemParaServidores(mensagemPadronizada);
             }
 
             @Override
             public void deliveryComplete(IMqttDeliveryToken token) {
-                // Não aplicável para o DataCenter como consumidor
             }
         });
 
@@ -103,13 +95,10 @@ public class DataCenter implements Runnable {
     }
 
     private void initializeRabbitMQ() throws IOException, TimeoutException {
-        ConnectionFactory factory = new ConnectionFactory(); //
-        factory.setHost("localhost"); // Usaremos localhost para o RabbitMQ (assumindo que esteja rodando localmente)
-        // Você pode configurar usuário/senha se necessário: factory.setUsername("guest"); factory.setPassword("guest");
-
-        connectionRabbitMQ = factory.newConnection(); //
-        channelRabbitMQ = connectionRabbitMQ.createChannel(); //
-        // Declara o exchange como 'topic' para roteamento flexível
+        ConnectionFactory factory = new ConnectionFactory(); 
+        factory.setHost("localhost"); 
+        connectionRabbitMQ = factory.newConnection(); 
+        channelRabbitMQ = connectionRabbitMQ.createChannel(); 
         channelRabbitMQ.exchangeDeclare(EXCHANGE_RABBITMQ, "topic");
         System.out.println("DataCenter conectado ao broker RabbitMQ e exchange '" + EXCHANGE_RABBITMQ + "' declarado.");
     }
@@ -129,7 +118,6 @@ public class DataCenter implements Runnable {
     }
 
     private void publicarEmRabbitMQ(String posicaoDrone, String mensagemPadronizada) {
-        // A chave de roteamento para RabbitMQ pode ser 'regiao.dados', ex: 'norte.dados'
         String routingKey = posicaoDrone.toLowerCase() + ".dados";
         try {
             channelRabbitMQ.basicPublish(EXCHANGE_RABBITMQ, routingKey, null, mensagemPadronizada.getBytes(StandardCharsets.UTF_8));
@@ -141,7 +129,6 @@ public class DataCenter implements Runnable {
     }
 
     private void publicarEmMQTTParaTempoReal(String posicaoDrone, String mensagemPadronizada) {
-        // O tópico para MQTT tempo real pode ser 'dados_climaticos_tempo_real/regiao/dados', ex: 'dados_climaticos_tempo_real/norte/dados'
         String topicoTempoReal = TOPICO_BASE_MQTT_TEMPO_REAL + posicaoDrone.toLowerCase() + "/dados";
         try {
             MqttMessage message = new MqttMessage(mensagemPadronizada.getBytes(StandardCharsets.UTF_8));
@@ -175,11 +162,11 @@ public class DataCenter implements Runnable {
                 })
                 .orElseThrow(() -> new IllegalArgumentException("Mensagem inválida: " + msg));
 
-        valores = limpo.split("\\|"); // Divide por '|'
+        valores = limpo.split("\\|"); // Divide por '|''
 
         if (valores.length == 4) {
             // Reordenar para [temperatura | umidade | pressao | radiacao]
-            // A ordem original dos drones é: pressao, radiacao, temperatura, umidade
+            
             String pressao = valores[0];
             String radiacao = valores[1];
             String temperatura = valores[2];
