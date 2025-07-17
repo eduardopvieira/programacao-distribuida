@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ConsumidorRabbitMQExecutable {
     public static void main(String[] args) {
-        // Cria um agendador para iniciar o consumidor após 10 segundos
+        // inicia o consumidor apos 10 segundos
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
         scheduler.schedule(() -> {

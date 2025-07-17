@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 public class DroneExecutables {
 
-    private static final long SIMULATION_DURATION_MINUTES = 3;                                  // Duração total da simulação 
+    private static final long SIMULATION_DURATION_MINUTES = 3;                                  // duração total da simulação
 
     public static void main(String[] args) {
 
@@ -48,15 +48,15 @@ public class DroneExecutables {
                 System.exit(0); 
             }, SIMULATION_DURATION_MINUTES, TimeUnit.MINUTES);
 
-            droneExecutor.awaitTermination(SIMULATION_DURATION_MINUTES + 1, TimeUnit.MINUTES); // Tempo extra para o shutdown
+            droneExecutor.awaitTermination(SIMULATION_DURATION_MINUTES + 1, TimeUnit.MINUTES);
 
         } catch (InterruptedException e) {
             System.out.println("Main thread interrompida durante a espera.");
             Thread.currentThread().interrupt();
         } finally {
-            droneExecutor.shutdownNow();    // Garante que o executor seja desligado
-            drones.forEach(Drone::cleanup); // Chama cleanup novamente, caso a InterruptedException tenha pulado a chamada anterior
-            mainScheduler.shutdownNow();    // Desliga o scheduler principal
+            droneExecutor.shutdownNow();
+            drones.forEach(Drone::cleanup);
+            mainScheduler.shutdownNow();
             System.out.println("Execução de Drones finalizada.");
         }
     }

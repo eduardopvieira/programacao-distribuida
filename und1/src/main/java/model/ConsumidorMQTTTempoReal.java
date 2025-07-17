@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedList; 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,12 +20,12 @@ import java.util.stream.Collectors;
 
 public class ConsumidorMQTTTempoReal implements Runnable {
 
-    private final String BROKER_HOST = "tcp://broker.hivemq.com:1883"; 
-    private final String TOPICO_BASE = "dados_climaticos_tempo_real/"; 
+    private final String BROKER_HOST = "tcp://broker.hivemq.com:1883";
+    private final String TOPICO_BASE = "dados_climaticos_tempo_real/";
     private MqttClient mqttClient;
-    private final int MAX_DASHBOARD_DATA_POINTS = 100;                          // Quantidade de dados recentes a serem guardados
-    private LinkedList<Map<String, String>> recentData = new LinkedList<>();    // Armazena os últimos N dados brutos (ou parseados)
-    private volatile long totalDadosColetadosDashboard = 0;                     // Contagem baseada nos dados recentes
+    private final int MAX_DASHBOARD_DATA_POINTS = 100;
+    private LinkedList<Map<String, String>> recentData = new LinkedList<>();
+    private volatile long totalDadosColetadosDashboard = 0;
     private Map<String, Long> totalPorElementoDashboard = new HashMap<>();
     private Map<String, Map<String, Double>> ultimosValoresPorRegiaoEElementoDashboard = new HashMap<>();
     private Map<String, Long> contagemPorRegiaoDashboard = new HashMap<>();
@@ -41,6 +41,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         }
     }
 
+    // configura e conecta o cliente ao broker mqtt.
     private void initializeMqttClient() throws MqttException {
         String clientId = MqttClient.generateClientId() + "_ConsumidorTempoReal";
         mqttClient = new MqttClient(BROKER_HOST, clientId, new MemoryPersistence());
@@ -61,9 +62,9 @@ public class ConsumidorMQTTTempoReal implements Runnable {
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
                 System.out.println(String.format("[ConsumidorMQTTTempoReal] Recebeu do tópico '%s' (QoS %d): '%s'",
-                        topic, message.getQos(), payload)); // Imprime a mensagem recebida
+                        topic, message.getQos(), payload));
 
-                processAndAggregateMessageForDashboard(topic, payload); // Processa e agrega para o dashboard
+                processAndAggregateMessageForDashboard(topic, payload);
             }
 
             @Override
@@ -75,20 +76,19 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         System.out.println("[ConsumidorMQTTTempoReal] Conectado ao broker MQTT: " + BROKER_HOST);
     }
 
+    // ponto de entrada da thread do consumidor.
     @Override
     public void run() {
         if (!mqttClient.isConnected()) {
             System.err.println("[ConsumidorMQTTTempoReal] Cliente MQTT não conectado. Encerrando.");
             return;
         }
-
         try {
-
             Thread dashboardInterfaceThread = new Thread(this::runDashboardInterface);
-            dashboardInterfaceThread.setDaemon(true); 
+            dashboardInterfaceThread.setDaemon(true);
             dashboardInterfaceThread.start();
 
-            setupSubscription(); 
+            setupSubscription();
         } catch (MqttException | InterruptedException e) {
             System.err.println("[ConsumidorMQTTTempoReal] Erro ao configurar assinatura ou processar mensagens: " + e.getMessage());
             e.printStackTrace();
@@ -104,6 +104,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         }
     }
 
+    // define as assinaturas de tópico com base na escolha do usuário.
     private void setupSubscription() throws MqttException, InterruptedException {
         BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("\n--- Consumidor MQTT Tempo Real ---");
@@ -113,7 +114,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         System.out.println("  3. Dados da região SUL (" + TOPICO_BASE + "sul/dados)");
         System.out.println("  4. Dados da região LESTE (" + TOPICO_BASE + "leste/dados)");
         System.out.println("  5. Dados da região OESTE (" + TOPICO_BASE + "oeste/dados)");
-        System.out.println("  6. Dados de TEMPERATURA de todas as regiões (" + TOPICO_BASE + "+/dados)"); 
+        System.out.println("  6. Dados de TEMPERATURA de todas as regiões (" + TOPICO_BASE + "+/dados)");
         System.out.println("  7. Dados de UMIDADE de todas as regiões (" + TOPICO_BASE + "+/dados)");
         System.out.println("  8. Dados de PRESSAO de todas as regiões (" + TOPICO_BASE + "+/dados)");
         System.out.println("  9. Dados de RADIACAO de todas as regiões (" + TOPICO_BASE + "+/dados)");
@@ -131,7 +132,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         if (!topicFilters.isEmpty()) {
             String[] topicsArray = topicFilters.toArray(new String[0]);
             int[] qosArray = new int[topicsArray.length];
-            Arrays.fill(qosArray, 1); 
+            Arrays.fill(qosArray, 1);
 
             mqttClient.subscribe(topicsArray, qosArray);
             System.out.println("[ConsumidorMQTTTempoReal] Assinado nos tópicos: " + topicFilters);
@@ -139,29 +140,29 @@ public class ConsumidorMQTTTempoReal implements Runnable {
             System.out.println("[ConsumidorMQTTTempoReal] Nenhuma assinatura válida selecionada.");
         }
 
-        // Mantém a thread do consumidor viva para receber mensagens
         System.out.println("[ConsumidorMQTTTempoReal] [*] Esperando mensagens. Para ver o dashboard, pressione ENTER.");
         while (!Thread.currentThread().isInterrupted()) {
             Thread.sleep(1000);
         }
     }
 
+    // traduz as escolhas numéricas do usuário em filtros de tópico.
     private List<String> parseChoices(String choice) {
         String[] rawChoices = choice.split(",");
         return Arrays.stream(rawChoices)
                 .map(String::trim)
                 .map(s -> {
                     switch (s) {
-                        case "1": return TOPICO_BASE + "#"; 
+                        case "1": return TOPICO_BASE + "#";
                         case "2": return TOPICO_BASE + "norte/dados";
                         case "3": return TOPICO_BASE + "sul/dados";
                         case "4": return TOPICO_BASE + "leste/dados";
                         case "5": return TOPICO_BASE + "oeste/dados";
-                        case "6": return TOPICO_BASE + "+/dados"; 
-                        case "7": return TOPICO_BASE + "+/dados"; 
-                        case "8": return TOPICO_BASE + "+/dados"; 
-                        case "9": return TOPICO_BASE + "+/dados"; 
-                        default: return ""; 
+                        case "6": return TOPICO_BASE + "+/dados";
+                        case "7": return TOPICO_BASE + "+/dados";
+                        case "8": return TOPICO_BASE + "+/dados";
+                        case "9": return TOPICO_BASE + "+/dados";
+                        default: return "";
                     }
                 })
                 .filter(s -> !s.isEmpty())
@@ -169,9 +170,8 @@ public class ConsumidorMQTTTempoReal implements Runnable {
                 .toList();
     }
 
-    // --- Lógica de Processamento e Agregação para o Dashboard ---
+    // processa uma mensagem recebida para o dashboard.
     private void processAndAggregateMessageForDashboard(String topic, String message) {
-        
         String[] topicParts = topic.split("/");
         String regiao = topicParts.length > 1 ? topicParts[1] : "desconhecido";
 
@@ -186,21 +186,21 @@ public class ConsumidorMQTTTempoReal implements Runnable {
             parsedMessage.put("radiacao", matcher.group(4).trim());
         } else {
             System.err.println("[ConsumidorMQTTTempoReal-Dashboard] Mensagem não corresponde ao padrão: " + message);
-            return; 
+            return;
         }
 
-        synchronized (this) {                   // Sincroniza o acesso aos dados do dashboard
-            recentData.addLast(parsedMessage);  // Adiciona o novo dado no final
+        synchronized (this) {
+            recentData.addLast(parsedMessage);
 
             if (recentData.size() > MAX_DASHBOARD_DATA_POINTS) {
-                recentData.removeFirst();       // Remove o dado mais antigo se exceder o limite
+                recentData.removeFirst();
             }
-            recalculateDashboardStatistics(); 
+            recalculateDashboardStatistics();
         }
     }
 
+    // recalcula todas as estatísticas a partir dos dados recentes.
     private void recalculateDashboardStatistics() {
-        // Limpa os contadores para recalcular
         totalDadosColetadosDashboard = 0;
         totalPorElementoDashboard.clear();
         ultimosValoresPorRegiaoEElementoDashboard.clear();
@@ -222,19 +222,18 @@ public class ConsumidorMQTTTempoReal implements Runnable {
                 totalPorElementoDashboard.merge("pressao", 1L, Long::sum);
                 totalPorElementoDashboard.merge("radiacao", 1L, Long::sum);
 
-                // Armazenar últimos valores por região e elemento (para listagens)
                 ultimosValoresPorRegiaoEElementoDashboard
-                    .computeIfAbsent(regiao, k -> new HashMap<>())
-                    .put("temperatura", temperatura);
+                        .computeIfAbsent(regiao, k -> new HashMap<>())
+                        .put("temperatura", temperatura);
                 ultimosValoresPorRegiaoEElementoDashboard
-                    .computeIfAbsent(regiao, k -> new HashMap<>())
-                    .put("umidade", umidade);
+                        .computeIfAbsent(regiao, k -> new HashMap<>())
+                        .put("umidade", umidade);
                 ultimosValoresPorRegiaoEElementoDashboard
-                    .computeIfAbsent(regiao, k -> new HashMap<>())
-                    .put("pressao", pressao);
+                        .computeIfAbsent(regiao, k -> new HashMap<>())
+                        .put("pressao", pressao);
                 ultimosValoresPorRegiaoEElementoDashboard
-                    .computeIfAbsent(regiao, k -> new HashMap<>())
-                    .put("radiacao", radiacao);
+                        .computeIfAbsent(regiao, k -> new HashMap<>())
+                        .put("radiacao", radiacao);
 
             } catch (NumberFormatException e) {
                 System.err.println("[ConsumidorMQTTTempoReal-Dashboard] Erro ao parsear valores numéricos de dados recentes: " + data);
@@ -242,8 +241,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         }
     }
 
-    // --- MÉTODOS PARA DASHBOARD NO CONSOLE ---
-
+    // gerencia a interface de texto do dashboard em uma thread separada.
     private void runDashboardInterface() {
         BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("\n--- Dashboard do Consumidor MQTT Tempo Real ---");
@@ -252,14 +250,14 @@ public class ConsumidorMQTTTempoReal implements Runnable {
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                
+
                 while (!consoleReader.ready()) {
-                    Thread.sleep(500); // Pequeno atraso para não consumir CPU em loop
+                    Thread.sleep(500);
                 }
                 String input = consoleReader.readLine();
                 if (input != null && (input.equalsIgnoreCase("0") )) {
                     System.out.println("Encerrando Dashboard...");
-                    System.exit(0); 
+                    System.exit(0);
                     break;
                 }
                 displayDashboardData();
@@ -275,15 +273,16 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         }
     }
 
+    // exibe os dados e estatísticas atuais no console.
     private void displayDashboardData() {
         System.out.println("\n--- DADOS CLIMÁTICOS RECENTES (Últimos " + MAX_DASHBOARD_DATA_POINTS + " pontos) ---");
-        synchronized (this) { 
+        synchronized (this) {
             System.out.println("Total de dados coletados: " + totalDadosColetadosDashboard);
 
             System.out.println("\nTotal por elemento climático (recentes):");
             if (totalDadosColetadosDashboard > 0) {
                 totalPorElementoDashboard.forEach((elemento, count) ->
-                    System.out.printf("  %s: %d dados\n", elemento, count, (double) count / totalDadosColetadosDashboard * 100)
+                        System.out.printf("  %s: %d dados\n", elemento, count, (double) count / totalDadosColetadosDashboard * 100)
                 );
             } else {
                 System.out.println("  Nenhum dado de elemento coletado recentemente.");
@@ -293,8 +292,8 @@ public class ConsumidorMQTTTempoReal implements Runnable {
             if (contagemPorRegiaoDashboard.isEmpty()) {
                 System.out.println("  Nenhum dado por região coletado recentemente.");
             } else {
-                 contagemPorRegiaoDashboard.forEach((regiao, count) ->
-                    System.out.printf("  %s: %d dados\n", regiao.toUpperCase(), count)
+                contagemPorRegiaoDashboard.forEach((regiao, count) ->
+                        System.out.printf("  %s: %d dados\n", regiao.toUpperCase(), count)
                 );
             }
 
@@ -304,29 +303,28 @@ public class ConsumidorMQTTTempoReal implements Runnable {
             } else {
                 System.out.println("\n  Temperaturas por Região:");
                 getTemperaturasPorRegiao().entrySet().stream()
-                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                    .forEach(entry -> System.out.printf("    %s: %.2f°C\n", entry.getKey().toUpperCase(), entry.getValue()));
+                        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                        .forEach(entry -> System.out.printf("    %s: %.2f°C\n", entry.getKey().toUpperCase(), entry.getValue()));
 
                 System.out.println("\n  Umidades por Região:");
                 getUmidadesPorRegiao().entrySet().stream()
-                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                    .forEach(entry -> System.out.printf("    %s: %.2f%%\n", entry.getKey().toUpperCase(), entry.getValue()));
+                        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                        .forEach(entry -> System.out.printf("    %s: %.2f%%\n", entry.getKey().toUpperCase(), entry.getValue()));
 
                 System.out.println("\n  Pressões por Região:");
                 getPressoesPorRegiao().entrySet().stream()
-                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                    .forEach(entry -> System.out.printf("    %s: %.2f hPa\n", entry.getKey().toUpperCase(), entry.getValue()));
+                        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                        .forEach(entry -> System.out.printf("    %s: %.2f hPa\n", entry.getKey().toUpperCase(), entry.getValue()));
 
                 System.out.println("\n  Radiação por Região:");
                 getRadiacoesPorRegiao().entrySet().stream()
-                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                    .forEach(entry -> System.out.printf("    %s: %.2f W/m²\n", entry.getKey().toUpperCase(), entry.getValue()));
+                        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                        .forEach(entry -> System.out.printf("    %s: %.2f W/m²\n", entry.getKey().toUpperCase(), entry.getValue()));
             }
         }
         System.out.println("-----------------------------\n");
     }
 
-    // --- Métodos para obter dados para Dashboard ---
     public long getTotalDadosColetados() {
         synchronized (this) { return totalDadosColetadosDashboard; }
     }
@@ -341,10 +339,10 @@ public class ConsumidorMQTTTempoReal implements Runnable {
             if (totalDadosColetadosDashboard == 0) return percentuais;
 
             totalPorElementoDashboard.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(entry ->
-                    percentuais.put(entry.getKey(), (double) entry.getValue() / totalDadosColetadosDashboard * 100)
-                );
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry ->
+                            percentuais.put(entry.getKey(), (double) entry.getValue() / totalDadosColetadosDashboard * 100)
+                    );
             return percentuais;
         }
     }
@@ -352,7 +350,7 @@ public class ConsumidorMQTTTempoReal implements Runnable {
     public Map<String, Map<String, Double>> getUltimosValoresPorRegiaoEElemento() {
         synchronized (this) {
             return ultimosValoresPorRegiaoEElementoDashboard.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashMap<>(e.getValue())));
+                    .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashMap<>(e.getValue())));
         }
     }
 
@@ -376,15 +374,16 @@ public class ConsumidorMQTTTempoReal implements Runnable {
         return getValuesByElement("radiacao");
     }
 
+    // extrai valores de um elemento específico para todas as regiões.
     private Map<String, Double> getValuesByElement(String elementName) {
         synchronized (this) {
             Map<String, Double> values = new LinkedHashMap<>();
             ultimosValoresPorRegiaoEElementoDashboard.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(entry ->
-                    Optional.ofNullable(entry.getValue().get(elementName))
-                        .ifPresent(val -> values.put(entry.getKey(), val))
-                );
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(entry ->
+                            Optional.ofNullable(entry.getValue().get(elementName))
+                                    .ifPresent(val -> values.put(entry.getKey(), val))
+                    );
             return values;
         }
     }

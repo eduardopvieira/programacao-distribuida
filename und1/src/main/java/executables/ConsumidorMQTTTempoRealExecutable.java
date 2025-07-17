@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 public class ConsumidorMQTTTempoRealExecutable {
     public static void main(String[] args) {
 
+        // inicia o consumidor apos 10 segundos
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
         scheduler.schedule(() -> {

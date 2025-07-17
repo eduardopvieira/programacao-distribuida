@@ -13,57 +13,55 @@ import java.util.concurrent.TimeUnit;
 
 public class Drone implements Runnable {
     private Posicao posicao;
-    private final int[] tempos = {2000, 3000, 4000, 5000};// Intervalo de 2 a 5 segundos
+    private final int[] tempos = {2000, 3000, 4000, 5000};
     private MqttClient mqttClient;
-    private final String BROKER = "tcp://broker.emqx.io:1883"; // Usando um broker público
-    private final String TOPICO_BASE = "drones/";  // Tópico base para os drones
+    private final String BROKER = "tcp://broker.emqx.io:1883";
+    private final String TOPICO_BASE = "drones/";
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> disconnectionTask;
-    private volatile boolean simulatedDisconnected = false; // Flag para controlar publicações durante desconexão simulada
+    private volatile boolean simulatedDisconnected = false;
 
     public Drone(Posicao posicao) {
         this.posicao = posicao;
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
         try {
-            String clientId = MqttClient.generateClientId(); // Gera um ID único para o cliente
+            String clientId = MqttClient.generateClientId();
             this.mqttClient = new MqttClient(BROKER, clientId, new MemoryPersistence());
             
             MqttConnectOptions connectOptions = new MqttConnectOptions();
-            connectOptions.setCleanSession(true); //
-            connectOptions.setAutomaticReconnect(true); // Habilita reconexão automática
-            connectOptions.setConnectionTimeout(10); //
-            connectOptions.setKeepAliveInterval(20); //
+            connectOptions.setCleanSession(true);
+            connectOptions.setAutomaticReconnect(true);
+            connectOptions.setConnectionTimeout(10);
+            connectOptions.setKeepAliveInterval(20);
 
-            // Adicionar MqttCallbackExtended para monitorar a conexão
             mqttClient.setCallback(new MqttCallbackExtended() {
                 @Override
                 public void connectionLost(Throwable cause) {
                     System.out.println("!!! Drone " + posicao + " PERDEU CONEXÃO: " + cause.getMessage() + " !!!");
-                    simulatedDisconnected = true; // Parar publicações quando a conexão for perdida
+                    simulatedDisconnected = true;
                 }
 
                 @Override
                 public void connectComplete(boolean reconnect, String serverURI) {
                     System.out.println("+++ Drone " + posicao + " CONEXÃO RESTABELECIDA (reconnect=" + reconnect + ") +++");
-                    simulatedDisconnected = false; // Retomar publicações quando a conexão for restabelecida
+                    simulatedDisconnected = false;
                 }
 
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    // Este é um produtor, então messageArrived não é usado.
+                    // é um produtor, nao usa isso
                 }
 
                 @Override
                 public void deliveryComplete(IMqttDeliveryToken token) {
-                    // Este é um produtor, e deliveryComplete confirma o envio de mensagens QoS > 0.
-                    // Não é estritamente necessário para este exercício, mas pode ser usado para depuração.
+                    // é um produtor, nao usa isso
                 }
             });
 
-            mqttClient.connect(connectOptions); // Conexão inicial
+            mqttClient.connect(connectOptions);
             System.out.println("Drone " + posicao + " conectado ao broker MQTT: " + BROKER);
 
-            scheduleSimulatedDisconnection(); // Agendando desconexão simulada
+            scheduleSimulatedDisconnection();
 
         } catch (MqttException e) {
             System.err.println("Erro ao conectar o Drone " + posicao + " ao broker MQTT: " + e.getMessage());
@@ -82,10 +80,10 @@ public class Drone implements Runnable {
         while (!Thread.currentThread().isInterrupted()) {
             int tempoAleatorio = tempos[new Random().nextInt(tempos.length)];
             String dados = gerarDados();
-            if (!simulatedDisconnected) { // Publica apenas se não estiver na fase de "desconectado simulado"
+            if (!simulatedDisconnected) { //nao publica se estiver desconectado
                 enviarPorMQTT(dados);
             } else {
-                System.out.println("Drone " + posicao + ": Em período de desconexão/reconexão. Não publicando."); // Mensagem ajustada
+                System.out.println("Drone " + posicao + ": Em período de desconexão/reconexão. Não publicando.");
             }
             try {
                 Thread.sleep(tempoAleatorio);
@@ -95,7 +93,7 @@ public class Drone implements Runnable {
                 break;
             }
         }
-        cleanup(); // Chama o cleanup
+        cleanup();
     }
 
     public String gerarDados() {
@@ -140,8 +138,8 @@ public class Drone implements Runnable {
 
     private void scheduleSimulatedDisconnection() {
         Random rand = new Random();
-        long initialDelay = 20 + rand.nextInt(20); // Primeira desconexão entre 20 e 40 segundos
-        long period = 30 + rand.nextInt(30);      // Repetir a cada 30 a 60 segundos
+        long initialDelay = 50 + rand.nextInt(20); // DESCONEXAO
+        long period = 30 + rand.nextInt(30);      // REPETIR A CADA 30-60 SEGUNDOS
 
         System.out.println("Drone " + posicao + ": Agendando desconexão inicial em " + initialDelay + "s, repetindo a cada " + period + "s.");
 
@@ -149,10 +147,9 @@ public class Drone implements Runnable {
             try {
                 if (mqttClient.isConnected()) {
                     System.out.println("--- SIMULANDO FALHA --- Drone " + posicao + " desconectando-se do broker.");
-                    // simulatedDisconnected = true; // Esta flag agora será controlada pelo connectionLost
-                    mqttClient.disconnectForcibly(100); // Desconecta forçadamente com um pequeno tempo de espera
-                    System.out.println("--- SIMULANDO FALHA --- Drone " + posicao + " desconectado. Aguardando reconexão automática..."); // Mensagem ajustada
-                    // A reconexão é automática devido ao setAutomaticReconnect(true)
+                    mqttClient.disconnectForcibly(100); //desconecta o drone
+
+                    System.out.println("--- SIMULANDO FALHA --- Drone " + posicao + " desconectado. Aguardando reconexão automática...");
                 }
             } catch (MqttException e) {
                 System.err.println("Erro ao simular desconexão do Drone " + posicao + ": " + e.getMessage());
