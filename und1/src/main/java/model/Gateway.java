@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.function.UnaryOperator;
 
-public class DataCenter implements Runnable {
+public class Gateway implements Runnable {
 
     private MqttClient mqttClientDrones;
     private final String BROKER_MQTT_DRONES = "tcp://broker.emqx.io:1883";
